@@ -1,3 +1,4 @@
+
 def openport(port):
     # IMPORTS
     import serial
@@ -18,7 +19,8 @@ import time
 start_time = time.time()
 
 ############################ INPUTS #############################################
-feed = 10 # feedrate mm/s
+############################ INPUTS #############################################
+feed = 25 # feedrate mm/s
 accel = 1000#700 # mm/s^2
 decel = -1000#-700 # mm/s^2
 
@@ -30,15 +32,15 @@ testing = "y = 2, feed = " +str(feed) + " mm/s, accel = " + str(accel) + " mm/s^
 
 number_of_ports_used = 1 # (aka number of materials used)
 
-Z_var = "D"
-z_height = 0.2
+Z_var = "C"
+z_height = 0.52
 z_o= -150 + z_height
 
 home = False  #do you want to home it? (True = yes)
 
 # Open the ports for the pressure box
-press_com1 = 5 # core
-press_com2 = 4 # shell
+press_com1 = 4 # core
+press_com2 = 5 # shell
 
 serialPort1 = openport(press_com1)
 serialPort2 = openport(press_com2)
@@ -64,7 +66,7 @@ def open_gcode(gcode_txt):
         gcode_list = [x for x in gcode_list if x != ""] # removes spaces
         #gcode_list = [x for x in gcode_list if ";" not in x] # removes comments
         gcode_list = [x for x in gcode_list if ";-" not in x]  # removes comments
-        print('Original: ', gcode_list)
+        #print('Original: ', gcode_list)
         gcode.close()
         return gcode_list
 gcode_list = open_gcode(gcode_txt_imported)
@@ -245,7 +247,7 @@ def condense_gcode(distance_list, final_gcode):
             f.write("G90\nG0 X0 Y0 " + Z_var + "0\nG91\n\r")
 
         f.write(";Begin Motion\n")
-        f.write("G0 X80 Y265  \n")
+        f.write("G0 X150 Y50 \n")
         f.write("G0 " + Z_var + str(z_o) + "\n")
         f.write("G1 F" + str(feed) + "\n\r")
 
@@ -260,8 +262,6 @@ def condense_gcode(distance_list, final_gcode):
             coord = sum_gcode_list[i]
             G_command = sum_g_list[i]
             f.write( G_command + " " + coord + "\r\n")
-
-        f.write('\n\rG1 Y-10')
         f.write('\n\rFILECLOSE $hFile\nM02')
 
     return sum_dist_list, f
@@ -271,7 +271,7 @@ print("length of condense_gcode = ", condense_end - condense_start)
 
 accel_profile_start = time.time()
 ## creates acceleration profile
-def accel_profile(sum_dist_list, feed, accel, decel):
+def accel_profile(sum_dist_list):
     import time
     def accel_length(v_0, v_f, accel):
         from sympy import symbols, solve
@@ -287,14 +287,15 @@ def accel_profile(sum_dist_list, feed, accel, decel):
             try:
                 sol_x[i] >= 0
                 x_steady = sol_x[i]
+                #x_steady = round(x_steady, 10)
             except TypeError:
                 print("error in value of x; it may be imaginary")
 
         find_t = v_0 + accel * t - v_f  # finds time to steady state velocity
         sol_t = solve(find_t)
         t_steady = sol_t[0]
+        #t_steady = round(t_steady, 10)
         return x_steady, t_steady
-
     def findt(v_0, accel, x):
         from sympy import symbols, solve
         # v_0 = starting velocity
@@ -308,10 +309,10 @@ def accel_profile(sum_dist_list, feed, accel, decel):
             try:
                 sol_t[i] >= 0
                 t = sol_t[i]
+                #t = round(t, 10)
             except TypeError:
                 print("error when calcuating time; might be getting an imaginary number.")
         return t
-
     def findv(v_0, accel, x):
         from sympy import symbols, solve
         # v_0 = starting velocity
@@ -322,19 +323,24 @@ def accel_profile(sum_dist_list, feed, accel, decel):
         # sol_v = solve(find_v)
         try:
             v = sqrt(v_0**2 + 2*accel*x)
+            #v = round(v, 10)
         except TypeError:
             print("error when calcuating velocity; might be getting an imaginary number.")
 
-        return float(v)
-
+        return v
+        #return float(v)
     def findt_using_v(v_0, v_f, accel):
         t = (v_f - v_0)/accel
+        #t = round(t, 10)
         return float(t)
 
     accel_dist_dict = {}
     accel_time_dict = {}
     accel_dist_abs_dict = {}
     accel_time_abs_dict = {}
+    flag_accel_result = {}
+    flag_decel_result = {}
+    flag_short_move = {}
     decel_abs_dist = 0
     decel_abs_time = 0
 
@@ -346,27 +352,46 @@ def accel_profile(sum_dist_list, feed, accel, decel):
             accel_time = 0
             decel_time = 0
         else:
-            accel_result = accel_length(0, feed, accel)
-            decel_result = accel_length(feed, 0, decel)
-            accel_dist = accel_result[0]
-            accel_time = accel_result[1]
-            decel_dist = decel_result[0]
-            decel_time = decel_result[1]
+            try:
+                accel_dist = flag_accel_result[str(feed)+str(accel)][0]
+                accel_time = flag_accel_result[str(feed)+str(accel)][1]
+                decel_dist = flag_decel_result[str(feed)+str(decel)][0]
+                decel_time = flag_decel_result[str(feed)+str(decel)][1]
+            except:
+                flag_accel_result[str(feed)+str(accel)] = accel_length(0, feed, accel)
+                flag_decel_result[str(feed)+str(decel)] = accel_length(feed, 0, decel)
+
+                accel_dist = flag_accel_result[str(feed) + str(accel)][0]
+                accel_time = flag_accel_result[str(feed) + str(accel)][1]
+                decel_dist = flag_decel_result[str(feed) + str(decel)][0]
+                decel_time = flag_decel_result[str(feed) + str(decel)][1]
+
             steady_state_dist = abs(sum_dist_list[i]) - accel_dist - decel_dist
+
 
         if steady_state_dist <= 0:
             steady_state_dist = 0
-            accel_dist = abs(sum_dist_list[i])*0.5
+            accel_dist = abs(sum_dist_list[i]) * 0.5
             decel_dist = accel_dist
-            accel_time = findt(0, accel, accel_dist)
-            v_current = findv(0, accel, accel_dist)
-            decel_time = findt_using_v(v_current, 0, decel)
+            key = str(accel_dist)
+            try:
+                accel_time = flag_short_move[key][0]
+                decel_time = flag_short_move[key][1]
+            except:
+                flag_short_move_list = []
+                accel_time = findt(0, accel, accel_dist)
+                v_current = findv(0, accel, accel_dist)
+                decel_time = findt_using_v(v_current, 0, decel)
+                flag_short_move_list.append(accel_time)
+                flag_short_move_list.append(decel_time)
+                flag_short_move[key] = flag_short_move_list
+
 
         steady_state_time = steady_state_dist/feed
         accel_dist_dict[i] = [accel_dist, steady_state_dist, decel_dist]
         accel_time_dict[i] = [accel_time,steady_state_time, decel_time]
 
-        key = i#decel_abs_dist
+        key = i #decel_abs_dist
 
         accel_abs_dist = decel_abs_dist + accel_dist
         steady_abs_dist = accel_abs_dist + steady_state_dist
@@ -381,12 +406,12 @@ def accel_profile(sum_dist_list, feed, accel, decel):
         accel_time_abs_dict[key] = [accel_abs_time, steady_abs_time, decel_abs_time]
 
 
-    print("accel_dist_dict = ", accel_dist_dict)
-    print("accel_time_dict = ", accel_time_dict) # never used
+    # print("accel_dist_dict = ", accel_dist_dict)
+    # print("accel_time_dict = ", accel_time_dict) # never used
     # print("accel_dist_abs_dict = ", accel_dist_abs_dict) # used in time-based function
     # print("accel_time_abs_dict = ", accel_time_abs_dict) # used in time-based function
     return accel_dist_abs_dict, accel_time_abs_dict
-accel_profile_output = accel_profile(sum_dist_list, feed, accel, decel)
+accel_profile_output = accel_profile(sum_dist_list)
 accel_profile_distance = accel_profile_output[0]
 accel_profile_time = accel_profile_output[1]
 accel_profile_end = time.time()
@@ -396,12 +421,13 @@ print("length of accel_profile = ", accel_profile_end-accel_profile_start)
 calc_time_start = time.time()
 def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_dict):
     def findt(v_0, accel, x):
+        import time
         from sympy import symbols, solve
         # v_0 = starting velocity
         # accel = acceleration/ramprate
         # x = distance traveled
         t = symbols('t')
-
+        start = time.time()
         find_t = v_0 * t + 0.5 * (accel) * t ** 2 - x  # finds time
         sol_t = solve(find_t)
         for i in range(len(sol_t)):
@@ -410,15 +436,21 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
                 t = sol_t[i]
             except TypeError:
                 check = 0
+        length_time = time.time() - start
+        # print(length_time)
         return t
+
     time_list = []
     time_dict = {}
     x_current = 0
     t = 0
     distance = 0
-    partial_move = True
     index_start = 0
-
+    flag_rel_dist_accel = {}
+    flag_rel_dist_max_vel = {}
+    flag_rel_dist_decel = {}
+    flag_count =0
+    count = 0
     for j in range(len(distance_dict)):
         if type(distance_dict[j]) == str:
             time_dict[j] = distance_dict[j]
@@ -433,51 +465,71 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
                     t_current = accel_profile_time[i][2]
                     x_current = decel_region
                     t = t_current
-                    partial_move = True
-                    index_start += 1 #x_current
+                    index_start += 1
 
                 elif distance >= max_velocity_region:
                     t_current = accel_profile_time[i][1]
                     x_current = max_velocity_region
                     t = t_current
-                    partial_move = True
 
                 elif distance >= accel_region:
                     t_current = accel_profile_time[i][0]
                     x_current = accel_region
                     t = t_current
-                    partial_move = True
 
-
-                if partial_move == True:
-                    if distance < accel_region:
-                        relative_distance = distance - x_current
+                if distance < accel_region:
+                    relative_distance = distance - x_current
+                    try:
+                        relative_distance = round(relative_distance, 7)
+                        t_current = flag_rel_dist_accel[relative_distance]
+                    except:
                         t_current = findt(0, accel, relative_distance)
-                        t += t_current
+                        relative_distance = round(relative_distance, 7)
 
-                    elif distance < max_velocity_region:
-                        relative_distance = distance - x_current
-                        t_current = relative_distance/feed #findt(feed, 0, relative_distance)
-                        t += t_current
+                    t += t_current
+                    flag_rel_dist_accel[relative_distance] = t_current
+                    break
 
-                    elif distance < decel_region:
-                        relative_distance = distance - x_current
+                elif distance < max_velocity_region:
+                    count +=1
+                    relative_distance = distance - x_current
+                    try:
+                        relative_distance = round(relative_distance,7)
+                        t_current = flag_rel_dist_max_vel[relative_distance]
+                        flag_count += 1
+                    except:
+                        t_current = relative_distance / feed  # findt(feed, 0, relative_distance)
+                        relative_distance = round(relative_distance,7)
+                    t += t_current
+                    flag_rel_dist_max_vel[relative_distance] = t_current
+                    break
+
+                elif distance < decel_region:
+                    relative_distance = distance - x_current
+
+                    try:
+                        relative_distance = round(relative_distance, 7)
+                        t_current = flag_rel_dist_decel[relative_distance]
+                    except:
                         t_current = findt(feed, decel, relative_distance)
-                        t += t_current
+                        relative_distance = round(relative_distance, 7)
 
-                    partial_move = False
+                    t += t_current
+                    flag_rel_dist_decel[relative_distance] = t_current
+                    break
 
+                if distance == decel_region or distance == max_velocity_region or distance == accel_region:
+                    break
 
             time_output = t
             time_list.append(time_output)
             time_dict[j] = time_output
-
-
-
+    print("max_vel_count = ", count)
+    print("flag count = ", flag_count)
     return time_dict
 
-time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict )
 
+time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict )
 start_delay_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel,[start_delay])[0])
 offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)])[0])
 
@@ -545,67 +597,69 @@ total_time = end_time - start_time
 print("\nTime to translate distance to time: ", total_time)
 
 print("time_based_dict_final = ", time_based_dict_final)
-print("set_press: ", set_press)
-print("initial_toggle: ", initial_toggle)
-print("command_dict_final = ", command_dict_final)
+# print("set_press: ", set_press)
+# print("initial_toggle: ", initial_toggle)
+# print("command_dict_final = ", command_dict_final)
 
-###### WAITING FOR PING ##################################
-print("\nWaiting for ping to start....")
-if __name__ == '__main__':
-
-    ser = openport(port_aerotech)
-    ser.reset_input_buffer()
-
-    told = time.time()
-    intervals = []
-
-    count = 0
-    while True:
-        bytesToRead = ser.inWaiting()
-        if bytesToRead > 0:
-            print('\r\n------------------')
-            message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
-            message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
-            print('Received command: ' + message)
-            if message == "start1\r\n":
-                pause = 0.011305268287658692 #from AEROTECH_PING_data.txt
-
-                exec(set_press)
-                print("Setting the pressures....")
-
-                break
-
-#### Executes Absolute timing ####
-print("Executing time-based code....")
-time.sleep(3-pause-start_delay_time)
-
-i = 0
-exec(initial_toggle)
-print("Initial toggle....")
-
-start_time = time.time()
+# ###### WAITING FOR PING ##################################
+# print("\nWaiting for ping to start....")
+# if __name__ == '__main__':
+#
+#     ser = openport(port_aerotech)
+#     ser.reset_input_buffer()
+#
+#     told = time.time()
+#     intervals = []
+#
+#     count = 0
+#     while True:
+#         bytesToRead = ser.inWaiting()
+#         if bytesToRead > 0:
+#             print('\r\n------------------')
+#             message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+#             message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+#             print('Received command: ' + message)
+#             if message == "start1\r\n":
+#                 pause = 0.011305268287658692 #from AEROTECH_PING_data.txt
+#
+#                 exec(set_press)
+#                 print("Setting the pressures....")
+#
+#                 break
+#
+# #### Executes Absolute timing ####
+# print("Executing time-based code....")
+# time.sleep(3-pause-start_delay_time)
+#
+# i = 0
+# exec(initial_toggle)
+# start_time = time.time()
 # time_dict_list = []
 # error_list = []
 # real_time_list = []
-while (i < len(command_dict_final)):
-    current_time_stamp = time_based_dict_final[i] - offset_time
-    real_time = time.time() - start_time
-    if (real_time >= (current_time_stamp)):
-        exec(command_dict_final[i])
-        # error = float(real_time - current_time_stamp)
-        print("Time: ", real_time)
-        print("\tCommands: ", command_dict_final[i])
-        # print("\tError: ",(error))
-        # if time_based_dict_final[i] != 0:
-        #     time_dict_list.append(current_time_stamp)
-        #     real_time_list.append(real_time)
-        #     error_list.append(error)
-        i += 1
-print("DONE!")
-
-serialPort1.close()
-serialPort2.close()
-
+# while (i < len(command_dict_final)):
+#     current_time_stamp = time_based_dict_final[i] - offset_time
+#     real_time = time.time() - start_time
+#     # if i > 0:
+#     #    current_time_stamp = current_time_stamp - offset/feed
+#     if (real_time >= (current_time_stamp) and i == i):
+#         exec(command_dict_final[i])
+#         error = float(real_time - current_time_stamp)
+#         print("Time: ", real_time)
+#         print("\tCommands: ", command_dict_final[i])
+#         print("\tError: ",(error))
+#
+#         if time_based_dict_final[i] != 0:
+#             time_dict_list.append(current_time_stamp)
+#             real_time_list.append(real_time)
+#             error_list.append(error)
+#
+#         i += 1
+# print("DONE!")
+#
+# serialPort1.close()
+# serialPort2.close()
+#
 # avg_error = np.average(error_list)
 # std_error = np.std(error_list)
 #
@@ -642,7 +696,7 @@ serialPort2.close()
 #     f.write("\rtime_list = " + str(time_dict_list) + " #includes offsets and delays")
 #     f.write("\rreal_time_list = " + str(real_time_list))
 #     f.write('\rerror_list = ' + str(error_list))
-
+#
 
 
 
