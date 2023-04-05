@@ -22,7 +22,7 @@ def setpress(pressure):
     ####format for arduino#####
     format_command = str(hexcommand)
     format_command = '\\x'.join(format_command[i:i + 2] for i in range(0, len(format_command), 2))
-    format_command = '\\x'+format_command
+    format_command = '\\x' + format_command
     ##########################
 
     hexcommand = wrap(hexcommand,
@@ -81,42 +81,41 @@ def togglepress():
     toggle = str("b'\\x05\\x02\\x30\\x34\\x44\\x49\\x20\\x20\\x43\\x46\\x03'")
     return toggle
 
+
 ## this version turns on only material 1
 
 ### Are you checking pattern on Qndirty/do you want G0 movements?
-G0_moves = True # false meanse all moves will be G1
+G0_moves = False  # false meanse all moves will be G1
 
 ### Do you want the material to stay on during y-movves?
-y_move_ON = True # false means you want material to turn off during y-moves
+y_move_ON = True  # false means you want material to turn off during y-moves
 
 ## Are you applying offsets and initial pause?
 apply_offset = False
-offset = 2.5 #1.4  # for F=15 #2.5mm for F=25
+offset = 2.5  # 1.4  # for F=15 #2.5mm for F=25
 
 ##INPUTS#############################################################################################################
 # Desired XYZ motion
 x = 1
-y = 0.58 #1
-z = 0.6 #1  # 0.58
+y = 0.58  # 1
+z = 0.6  # 1  # 0.58
 Z_var = "Z"
 
 col = 50
 rows = 50
 
-total_width = col*x
-total_height = rows*x
-number_lines_to_print = int(total_height/y)
+total_width = col * x
+total_height = rows * x
+number_lines_to_print = int(total_height / y)
 print("number_lines_to_print = ", number_lines_to_print)
 
-lines_per_row = int(number_lines_to_print/rows)
-if lines_per_row <= 1:
-    lines_per_row +=1
+lines_per_row = int(number_lines_to_print / rows)
 print("lines_per_row (rounded to a whole number) = ", lines_per_row)
-number_lines_to_print = lines_per_row*rows
+number_lines_to_print = lines_per_row * rows
 print("number_lines_to_print (updated so that number of lines per row is a whole number) = ", number_lines_to_print)
 
 # Feedrate
-F = 10 # mm/sec
+F = 10  # mm/sec
 F = F * 60  # mm/min
 
 pressure = [35, 35]
@@ -124,21 +123,20 @@ pressure = [35, 35]
 ######################################################################################################################
 com = ["serialPort1", "serialPort2"]
 
-# setpress1 = str('\n\r' + com[0] + '.write(' + str(setpress(pressure[0])) + ')') # material 1
-# setpress2 = '\n\r'  # material 2
-setpress1 = '\n\r Pressure Material 1' # material 1
-setpress2 = '\n\r Pressure Material 2'  # material 2
+setpress1 = str('\n\r' + com[0] + '.write(' + str(setpress(pressure[0])) + ')') # material 1
+setpress2 = '\n\r'  # material 2
+# setpressCore = '\n\r Pressure Material 1'  # material 1
+# setpressShell = '\n\r Pressure Material 2'  # material 2
 
-# toggleON_1 = str('\n\r' + com[0] + '.write(' + str(togglepress()) + ')') # turn on material 2
-# toggleOFF_1 = toggleON_1
-toggleON_1 = '\n\rMaterial 1 ON'
-toggleOFF_1 = '\n\rMaterial 1 OFF'
+toggleON_1 = str('\n\r' + com[0] + '.write(' + str(togglepress()) + ')') # turn on material 2
+toggleOFF_1 = toggleON_1
+# toggleON_Core = '\n\rMaterial 1 ON'
+# toggleOFF_Core = '\n\rMaterial 1 OFF'
 
-# toggleON_2 = '\n\r'  #start 2nd material
-# toggleOFF_2 = toggleON_2 #'\n'  # "\nM792 ;SEND Ultimus_IO["+str(comRight)+"]= 0" #stop 2nd material
-toggleON_2 = '\n\rMaterial 2 ON'
-toggleOFF_2 = '\n\rMaterial 2 OFF'
-
+toggleON_2 = '\n\r'  #start 2nd material
+toggleOFF_2 = toggleON_2 #'\n'  # "\nM792 ;SEND Ultimus_IO["+str(comRight)+"]= 0" #stop 2nd material
+# toggleON_Shell = '\n\rMaterial 2 ON'
+# toggleOFF_Shell = '\n\rMaterial 2 OFF'
 
 if apply_offset == False:
     offset = 0
@@ -160,10 +158,9 @@ move_neg_y = "\n\rG1" + _Y
 move_pos_x_offset = "\nG1 X" + str(offset)
 move_neg_x_offset = "\nG1 X" + str(-offset)
 
-
 row_count = 1
 material_ON = 1
-with open("1Output_Gcode_checker_V2.txt", 'w') as f:
+with open("1DGC_Generate_Checkerboard_M1.txt", 'w') as f:
     f.write("\n\r;------------Set Pressures------------")
     f.write(setpress1)
     f.write(setpress2)
@@ -200,9 +197,9 @@ with open("1Output_Gcode_checker_V2.txt", 'w') as f:
                 move_x_final_col_2 = "\nG0 X" + str(-x)
 
         ############ deterning what material to turn on or off
-        if current_line <= number_lines_to_print/rows * row_count:
+        if current_line <= number_lines_to_print / rows * row_count:
             for j in range(col):
-                if (j + 1) == col:   ## if the last column
+                if (j + 1) == col:  ## if the last column
                     if material_ON == 1:
                         move_x_code = move_x_final_col_1
                         move_x_code_offset = '\r'
@@ -214,11 +211,11 @@ with open("1Output_Gcode_checker_V2.txt", 'w') as f:
                         switchOFF = toggleOFF_2
                         switchON = toggleON_2
 
-                    switch = switchOFF + move_pos_y + switchON ### to turn material off during y-moves
+                    switch = switchOFF + move_pos_y + switchON  ### to turn material off during y-moves
                     if y_move_ON == True:
-                        switch = '\n' + move_pos_y ### to keep material on during y-moves
+                        switch = '\n' + move_pos_y  ### to keep material on during y-moves
 
-                    if current_line == number_lines_to_print: ## if the last column and the end of the print
+                    if current_line == number_lines_to_print:  ## if the last column and the end of the print
                         if material_ON == 1:
                             switch = toggleOFF_1
                         elif material_ON == 2:
@@ -242,13 +239,13 @@ with open("1Output_Gcode_checker_V2.txt", 'w') as f:
                     f.write(move_x_code_offset)
 
             ############ determines what to do on the last lines of each row
-            if current_line == number_lines_to_print/rows*row_count and current_line != number_lines_to_print: ## if the last line of the row and not the last line in the print
+            if current_line == number_lines_to_print / rows * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
                 f.write("\r\n;--------------------------------- new row --------------------------------")
-                if row_count % 2 != 0: # switching from odd rows to even row
+                if material_ON == 1:  # switching from odd rows to even row
                     switch = toggleON_2 + toggleOFF_1
                     material_ON = 2
                 else:
                     switch = toggleON_1 + toggleOFF_2
                     material_ON = 1
                 f.write(switch)
-                row_count += 1 ## moves loop to next row block
+                row_count += 1  ## moves loop to next row block
