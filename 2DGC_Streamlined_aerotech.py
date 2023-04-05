@@ -24,23 +24,24 @@ feed = 25 # feedrate mm/s
 accel = 1000#700 # mm/s^2
 decel = -1000#-700 # mm/s^2
 
-offset = 0#-2#0  #use a negative number to increase length of time/material being on (units in mm)
-start_delay =0#3.5 #(units in mm)
-gcode_txt_imported = "Y_move_accel_test_gcode.txt" #"1Output_Gcode_checker_M1.txt" #Y_move_accel_test_gcode.txt" #"1Output_Gcode_checker_M1.txt" #"1Output_Gcode_checker_CoreShell.txt" #"1Output_Gcode_checker_both.txt" #"1Output_Gcode_checker_M1.txt"
-final_gcode_txt_export = "2Output_Final_gcode_aerotech.txt"
-testing = "y = 2, feed = " +str(feed) + " mm/s, accel = " + str(accel) + " mm/s^2"
 
+gcode_txt_imported = "1DGC_Generate_Gradient_M1_gcode.txt"#"1DGC_Generate_Checkerboard_M1_gcode.txt"#"1DGC_Y_move_accel_test_gcode.txt"
+final_gcode_txt_export = "1DGC_Generate_Gradient_M1_aerotech10.txt"
+testing = "checkerboard" #"y = 0.2, feed = " +str(feed) + " mm/s, accel = " + str(accel) + " mm/s^2"
+offset = 0 #2.5 #-2#0  #use a negative number to increase length of time/material being on (units in mm)
+start_offset = 0 #5 # core-shell
+start_delay = 0 #2 #3.5 #(units in mm)
 number_of_ports_used = 1 # (aka number of materials used)
 
-Z_var = "C"
-z_height = 0.52
+Z_var = "D"
+z_height = 0.5
 z_o= -150 + z_height
 
 home = False  #do you want to home it? (True = yes)
 
 # Open the ports for the pressure box
-press_com1 = 4 # core
-press_com2 = 5 # shell
+press_com1 = 5 # core
+press_com2 = 4 # shell
 
 serialPort1 = openport(press_com1)
 serialPort2 = openport(press_com2)
@@ -174,12 +175,12 @@ distance_list = parsed_gcode[1] # contains the distances
 direction_list = parsed_gcode[2] # contains the directions, i.e., X, Y, Y/X (diagonal)
 g_command_list = parsed_gcode[3] # contains the G commands
 parse_end = time.time()
-print("length of parse_gcode = ", parse_end - parse_start)
+print("Time to run parse_gcode = ", parse_end - parse_start)
 
 
 condense_start = time.time()
 ## creates simplified gcode for 3d printer and for use in acceleration profile
-def condense_gcode(distance_list, final_gcode):
+def condense_gcode(distance_list):
     sum_distance = distance_list[0]
     current_direction = direction_list[0]
     current_g_command = g_command_list[0]
@@ -232,9 +233,18 @@ def condense_gcode(distance_list, final_gcode):
     # print("sum_gcode_list = ", sum_gcode_list)
     # print("group_dist_accel_dict = ", group_dist_accel_dict)
     # print("group_abs_dist_accel_dict = ", group_abs_dist_accel_dict)
+    return sum_dist_list, sum_g_list, sum_gcode_list
+condense_gcode_output = condense_gcode(distance_list)
+sum_dist_list = condense_gcode_output[0] # creates list of distance where each entry represents a new acceleration profile
+sum_g_list = condense_gcode_output[1]
+sum_gcode_list = condense_gcode_output[2]
+condense_end = time.time()
+print("Time to run condense_gcode = ", condense_end - condense_start)
 
+
+def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed,sum_gcode_list, sum_g_list):
     ## create txt for gcode used in 3d printer
-    with open(final_gcode, "w") as f:
+    with open(final_gcode_txt_export, "w", 0) as f:
         f.write("DVAR $hFile\n\r")
         f.write('G71 \nG76 \nG91	;G90 = absolute, G91 = relative \nG68 \nRAMP TYPE LINEAR X Y \nRAMP RATE ' +str(accel)+ '\n\rVELOCITY OFF\n\r')
 
@@ -263,11 +273,9 @@ def condense_gcode(distance_list, final_gcode):
             G_command = sum_g_list[i]
             f.write( G_command + " " + coord + "\r\n")
         f.write('\n\rFILECLOSE $hFile\nM02')
-
-    return sum_dist_list, f
-sum_dist_list = condense_gcode(distance_list, final_gcode_txt_export)[0] # creates list of distance where each entry represents a new acceleration profile
-condense_end = time.time()
-print("length of condense_gcode = ", condense_end - condense_start)
+    print("\n\r", final_gcode_txt_export, " has been created\n\r")
+    return f
+create_gcode = generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed,sum_gcode_list, sum_g_list)
 
 accel_profile_start = time.time()
 ## creates acceleration profile
@@ -415,7 +423,7 @@ accel_profile_output = accel_profile(sum_dist_list)
 accel_profile_distance = accel_profile_output[0]
 accel_profile_time = accel_profile_output[1]
 accel_profile_end = time.time()
-print("length of accel_profile = ", accel_profile_end-accel_profile_start)
+print("Time to run accel_profile = ", accel_profile_end-accel_profile_start)
 
 ## creates dictionary of time and commands
 calc_time_start = time.time()
@@ -524,14 +532,14 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
             time_output = t
             time_list.append(time_output)
             time_dict[j] = time_output
-    print("max_vel_count = ", count)
-    print("flag count = ", flag_count)
     return time_dict
 
 
 time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict )
 start_delay_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel,[start_delay])[0])
 offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)])[0])
+start_offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(start_offset)])[0])
+
 
 if offset < 0:
     offset_time = -offset_time
@@ -540,7 +548,7 @@ if offset < 0:
 
 calc_time_end = time.time()
 print("start_delay_time = ", start_delay_time, "\noffset_time = ", offset_time)
-print("length of distance2time = ", calc_time_end-calc_time_start)
+print("Time to run distance2time = ", calc_time_end-calc_time_start)
 
 final_dict_start = time.time()
 ## creates final dictionaries of commands and times to use
@@ -549,7 +557,6 @@ def final_dicts(time_dict):
     time_based_dict_final = {}
     command_dict_final = {}
 
-    count_t = 0
     dict_count_t = 0
     start_count_c = 0
     initial_commands = []
@@ -560,7 +567,6 @@ def final_dicts(time_dict):
         if type(entry) != str:
             time_based_dict_final[dict_count_t] = entry
             command_list = []
-            count_t += 1
             start_count_c = 0
             initial_commands_trigger = 1
         else:
@@ -594,72 +600,73 @@ print("length of final_dicts = ", final_dict_end - final_dict_start)
 
 end_time = time.time()
 total_time = end_time - start_time
-print("\nTime to translate distance to time: ", total_time)
+print("\nTotal time to translate distance to time: ", total_time)
 
 print("time_based_dict_final = ", time_based_dict_final)
-# print("set_press: ", set_press)
-# print("initial_toggle: ", initial_toggle)
-# print("command_dict_final = ", command_dict_final)
+print("set_press: ", set_press)
+print("initial_toggle: ", initial_toggle)
+print("command_dict_final = ", command_dict_final)
 
-# ###### WAITING FOR PING ##################################
-# print("\nWaiting for ping to start....")
-# if __name__ == '__main__':
-#
-#     ser = openport(port_aerotech)
-#     ser.reset_input_buffer()
-#
-#     told = time.time()
-#     intervals = []
-#
-#     count = 0
-#     while True:
-#         bytesToRead = ser.inWaiting()
-#         if bytesToRead > 0:
-#             print('\r\n------------------')
-#             message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
-#             message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
-#             print('Received command: ' + message)
-#             if message == "start1\r\n":
-#                 pause = 0.011305268287658692 #from AEROTECH_PING_data.txt
-#
-#                 exec(set_press)
-#                 print("Setting the pressures....")
-#
-#                 break
-#
-# #### Executes Absolute timing ####
-# print("Executing time-based code....")
-# time.sleep(3-pause-start_delay_time)
-#
-# i = 0
-# exec(initial_toggle)
-# start_time = time.time()
-# time_dict_list = []
-# error_list = []
-# real_time_list = []
-# while (i < len(command_dict_final)):
-#     current_time_stamp = time_based_dict_final[i] - offset_time
-#     real_time = time.time() - start_time
-#     # if i > 0:
-#     #    current_time_stamp = current_time_stamp - offset/feed
-#     if (real_time >= (current_time_stamp) and i == i):
-#         exec(command_dict_final[i])
-#         error = float(real_time - current_time_stamp)
-#         print("Time: ", real_time)
-#         print("\tCommands: ", command_dict_final[i])
-#         print("\tError: ",(error))
-#
-#         if time_based_dict_final[i] != 0:
-#             time_dict_list.append(current_time_stamp)
-#             real_time_list.append(real_time)
-#             error_list.append(error)
-#
-#         i += 1
-# print("DONE!")
-#
-# serialPort1.close()
-# serialPort2.close()
-#
+###### WAITING FOR PING ##################################
+print("\nWaiting for ping to start....")
+if __name__ == '__main__':
+
+    ser = openport(port_aerotech)
+    ser.reset_input_buffer()
+
+    told = time.time()
+    intervals = []
+
+    count = 0
+    while True:
+        bytesToRead = ser.inWaiting()
+        if bytesToRead > 0:
+            print('\r\n------------------')
+            message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+            message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+            print('Received command: ' + message)
+
+            if message == "start1\r\n":
+                pause = 0.011305268287658692#from AEROTECH_PING_data.txt
+
+                exec(set_press)
+                print("Setting the pressures....")
+
+                break
+
+#### Executes Absolute timing ####
+print("Executing time-based code....")
+time.sleep(3-pause - start_delay_time)
+
+i = 0
+exec(initial_toggle)
+start_time = time.time()
+time_dict_list = []
+error_list = []
+real_time_list = []
+while (i < len(command_dict_final)):
+    current_time_stamp = time_based_dict_final[i] - offset_time
+    # if i == 0:
+    #     current_time_stamp = current_time_stamp - start_offset_time
+    real_time = time.time() - start_time
+    if (real_time >= (current_time_stamp) and i == i):
+        exec(command_dict_final[i])
+        error = float(real_time - current_time_stamp)
+        print("Time: ", real_time)
+        print("\tCommands: ", command_dict_final[i])
+        print("\tError: ",(error))
+
+        if time_based_dict_final[i] != 0:
+            time_dict_list.append(current_time_stamp)
+            real_time_list.append(real_time)
+            error_list.append(error)
+
+        i += 1
+print("DONE!")
+
+serialPort1.close()
+serialPort2.close()
+
 # avg_error = np.average(error_list)
 # std_error = np.std(error_list)
 #
