@@ -245,10 +245,10 @@ with open("1DGC_Generate_Checkerboard_CoreShell_gcode.txt", 'w') as f:
             if current_line == number_lines_to_print / rows * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
                 f.write("\r\n;--------------------------------- new row --------------------------------")
                 if material_ON == 1:  # switching from odd rows to even row
-                    switch = toggleON_Shell + toggleOFF_Core
+                    switch = toggleOFF_Core
                     material_ON = 2
                 else:
-                    switch = toggleON_Shell + toggleOFF_Core
+                    switch = toggleON_Core
                     material_ON = 1
                 f.write(switch)
                 row_count += 1  ## moves loop to next row block
