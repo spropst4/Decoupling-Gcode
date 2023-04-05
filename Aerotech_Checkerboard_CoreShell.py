@@ -82,7 +82,7 @@ def togglepress():
     return toggle
 
 ### Are you checking pattern on Qndirty/do you want G0 movements?
-G0_moves = False  # false meanse all moves will be G1
+G0_moves = True  # false meanse all moves will be G1
 
 ### Do you want the material to stay on during y-movves?
 y_move_ON = True  # false means you want material to turn off during y-moves
@@ -107,8 +107,8 @@ z = 0.6  # 1  # 0.58
 Z_var = "D"
 Z_start = -150 + z
 
-col = 3
-rows = 3
+col = 30
+rows = 30
 
 # Feedrate
 feed = 10  # mm/sec
@@ -142,10 +142,10 @@ if apply_offset == False:
 ### Calculating width, height, number of lines to print, etc. ###
 total_width = col * x
 total_height = rows * x
-number_lines_to_print = int(total_height / y)
+number_lines_to_print = round(total_height / y)
 print("number_lines_to_print = ", number_lines_to_print)
 
-lines_per_row = int(number_lines_to_print / rows)
+lines_per_row = round(number_lines_to_print / rows)
 print("lines_per_row (rounded to a whole number) = ", lines_per_row)
 number_lines_to_print = lines_per_row * rows
 print("number_lines_to_print (updated so that number of lines per row is a whole number) = ", number_lines_to_print)
@@ -233,7 +233,7 @@ with open(export_gcode_txt, type_open) as f:
                 move_x_final_col_2 = "\nG0 X" + str(-x)
 
         ############ deterning what material to turn on or off
-        if current_line <= number_lines_to_print / rows * row_count:
+        if current_line <= lines_per_row * row_count:
             for j in range(col):
                 if (j + 1) == col:  ## if the last column
                     if material_ON == 1:
@@ -275,13 +275,13 @@ with open(export_gcode_txt, type_open) as f:
                     f.write(move_x_code_offset)
 
             ############ determines what to do on the last lines of each row
-            if current_line == number_lines_to_print / rows * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
+            if current_line == lines_per_row * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
                 f.write("\r\n;--------------------------------- new row --------------------------------")
                 if material_ON == 1:  # switching from odd rows to even row
-                    switch = toggleON_2 + toggleOFF_1
+                    switch = toggleOFF_Core
                     material_ON = 2
                 else:
-                    switch = toggleON_1 + toggleOFF_2
+                    switch = toggleON_Core
                     material_ON = 1
                 f.write(switch)
                 row_count += 1  ## moves loop to next row block
