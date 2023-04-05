@@ -85,7 +85,7 @@ def togglepress():
 ## this version turns on only material 1
 
 ### Are you checking pattern on Qndirty/do you want G0 movements?
-G0_moves = False  # false meanse all moves will be G1
+G0_moves = True  # false meanse all moves will be G1
 
 ### Do you want the material to stay on during y-movves?
 y_move_ON = True  # false means you want material to turn off during y-moves
@@ -96,20 +96,20 @@ offset = 2.5  # 1.4  # for F=15 #2.5mm for F=25
 
 ##INPUTS#############################################################################################################
 # Desired XYZ motion
-x = 10
+x = 1
 y = 0.58  # 1
 z = 0.6  # 1  # 0.58
 Z_var = "Z"
 
-col = 3
-rows = 3
+col = 30
+rows = 30
 
 total_width = col * x
 total_height = rows * x
-number_lines_to_print = int(total_height / y)
+number_lines_to_print = round(total_height / y)
 print("number_lines_to_print = ", number_lines_to_print)
 
-lines_per_row = int(number_lines_to_print / rows)
+lines_per_row = round(number_lines_to_print / rows)
 print("lines_per_row (rounded to a whole number) = ", lines_per_row)
 number_lines_to_print = lines_per_row * rows
 print("number_lines_to_print (updated so that number of lines per row is a whole number) = ", number_lines_to_print)
@@ -245,10 +245,10 @@ with open("1DGC_Generate_Checkerboard_CoreShell_gcode.txt", 'w') as f:
             if current_line == number_lines_to_print / rows * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
                 f.write("\r\n;--------------------------------- new row --------------------------------")
                 if material_ON == 1:  # switching from odd rows to even row
-                    switch = toggleON_2 + toggleOFF_1
+                    switch = toggleON_Shell + toggleOFF_Core
                     material_ON = 2
                 else:
-                    switch = toggleON_1 + toggleOFF_2
+                    switch = toggleON_Shell + toggleOFF_Core
                     material_ON = 1
                 f.write(switch)
                 row_count += 1  ## moves loop to next row block
