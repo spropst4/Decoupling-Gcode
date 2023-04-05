@@ -85,7 +85,7 @@ def togglepress():
 ## this version turns on only material 1
 
 ### Are you checking pattern on Qndirty/do you want G0 movements?
-G0_moves = True  # false meanse all moves will be G1
+G0_moves = False  # false meanse all moves will be G1
 
 ### Do you want the material to stay on during y-movves?
 y_move_ON = True  # false means you want material to turn off during y-moves
@@ -110,8 +110,6 @@ number_lines_to_print = int(total_height / y)
 print("number_lines_to_print = ", number_lines_to_print)
 
 lines_per_row = int(number_lines_to_print / rows)
-if lines_per_row <= 1:
-    lines_per_row += 1
 print("lines_per_row (rounded to a whole number) = ", lines_per_row)
 number_lines_to_print = lines_per_row * rows
 print("number_lines_to_print (updated so that number of lines per row is a whole number) = ", number_lines_to_print)
@@ -126,7 +124,7 @@ pressure = [35, 35] # 1 is core, 2 is shell
 com = ["serialPort1", "serialPort2"] # 1 is core, 2 is shell
 
 setpressCore = str('\n\r' + com[0] + '.write(' + str(setpress(pressure[0])) + ')') #  core
-setpressShell = str('\n\r' + com[1] + '.write(' + str(setpress(pressure[0])) + ')') # shell 1
+setpressShell = str('\n\r' + com[1] + '.write(' + str(setpress(pressure[1])) + ')') # shell 1
 #setpressCore = '\n\r Pressure Material 1'
 # setpressShell = '\n\r Pressure Material 2'
 
@@ -246,11 +244,11 @@ with open("1DGC_Generate_Checkerboard_CoreShell_gcode.txt", 'w') as f:
             ############ determines what to do on the last lines of each row
             if current_line == number_lines_to_print / rows * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
                 f.write("\r\n;--------------------------------- new row --------------------------------")
-                if row_count % 2 != 0:  # switching from odd rows to even row
-                    switch = toggleOFF_Core
+                if material_ON == 1:  # switching from odd rows to even row
+                    switch = toggleON_2 + toggleOFF_1
                     material_ON = 2
                 else:
-                    switch = toggleON_Core
+                    switch = toggleON_1 + toggleOFF_2
                     material_ON = 1
                 f.write(switch)
                 row_count += 1  ## moves loop to next row block
