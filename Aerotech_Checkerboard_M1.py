@@ -142,10 +142,10 @@ if apply_offset == False:
 ### Calculating width, height, number of lines to print, etc. ###
 total_width = col * x
 total_height = rows * x
-number_lines_to_print = int(total_height / y)
+number_lines_to_print = round(total_height / y)
 print("number_lines_to_print = ", number_lines_to_print)
 
-lines_per_row = int(number_lines_to_print / rows)
+lines_per_row = round(number_lines_to_print / rows)
 # while lines_per_row <= 1:
 #     lines_per_row += 1
 print("lines_per_row (rounded to a whole number) = ", lines_per_row)
@@ -278,11 +278,5 @@ with open(export_gcode_txt, type_open) as f:
                 else:
                     switch = toggleON_1 + toggleOFF_2
                     material_ON = 1
-                # if row_count % 2 != 0:  # switching from odd rows to even row
-                #     switch = toggleON_2 + toggleOFF_1
-                #     material_ON = 2
-                # else:
-                #     switch = toggleON_1 + toggleOFF_2
-                #     material_ON = 1
                 f.write(switch)
                 row_count += 1  ## moves loop to next row block
