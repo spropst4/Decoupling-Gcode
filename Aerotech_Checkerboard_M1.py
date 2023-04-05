@@ -82,7 +82,7 @@ def togglepress():
     return toggle
 
 ### Are you checking pattern on Qndirty/do you want G0 movements?
-G0_moves = False  # false meanse all moves will be G1
+G0_moves = True  # false meanse all moves will be G1
 
 ### Do you want the material to stay on during y-movves?
 y_move_ON = True  # false means you want material to turn off during y-moves
@@ -101,14 +101,14 @@ ending_gcode = "Spropst_aerotech_end.txt"
 
 ############# INPUTS ################################
 # Desired XYZ motion
-x = 10
-y = 0.58  # 1
+x = 0.2
+y = 0.2  # 1
 z = 0.6  # 1  # 0.58
 Z_var = "D"
 Z_start = -150 + z
 
-col = 3
-rows = 3
+col = 50
+rows = 50
 
 # Feedrate
 feed = 10  # mm/sec
@@ -146,8 +146,8 @@ number_lines_to_print = int(total_height / y)
 print("number_lines_to_print = ", number_lines_to_print)
 
 lines_per_row = int(number_lines_to_print / rows)
-if lines_per_row <= 1:
-    lines_per_row += 1
+# while lines_per_row <= 1:
+#     lines_per_row += 1
 print("lines_per_row (rounded to a whole number) = ", lines_per_row)
 number_lines_to_print = lines_per_row * rows
 print("number_lines_to_print (updated so that number of lines per row is a whole number) = ", number_lines_to_print)
@@ -168,11 +168,6 @@ move_neg_y = "\n\rG1" + _Y
 
 move_pos_x_offset = "\nG1 X" + str(offset)
 move_neg_x_offset = "\nG1 X" + str(-offset)
-
-row_count = 1
-material_ON = 1
-
-
 
 ## Writes aerotech intro to final file (only runs if you flagged it as true)
 def intro(intro_gcode, export_gcode_txt, Z_var, ramprate, feed, Z_start):
@@ -195,6 +190,8 @@ else:
 
 
 ## generates the g-code
+row_count = 1
+material_ON = 1
 with open(export_gcode_txt, type_open) as f:
     f.write("\n\r;------------Set Pressures------------")
     f.write(setpress1)
@@ -204,7 +201,6 @@ with open(export_gcode_txt, type_open) as f:
         current_line = i + 1
         if i > 1:
             f.write("\n------------- new line -------------------")
-
         ############ defining the x-movements; i.e., is it moving + or -, are there G0 moves, are there offset
         if current_line % 2 != 0:  ## odd line
             move_x_1 = move_pos_x
@@ -232,7 +228,7 @@ with open(export_gcode_txt, type_open) as f:
                 move_x_final_col_2 = "\nG0 X" + str(-x)
 
         ############ deterning what material to turn on or off
-        if current_line <= number_lines_to_print / rows * row_count:
+        if current_line <= lines_per_row * row_count:
             for j in range(col):
                 if (j + 1) == col:  ## if the last column
                     if material_ON == 1:
@@ -274,13 +270,19 @@ with open(export_gcode_txt, type_open) as f:
                     f.write(move_x_code_offset)
 
             ############ determines what to do on the last lines of each row
-            if current_line == number_lines_to_print / rows * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
+            if current_line == lines_per_row * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
                 f.write("\r\n;--------------------------------- new row --------------------------------")
-                if row_count % 2 != 0:  # switching from odd rows to even row
+                if material_ON == 1:  # switching from odd rows to even row
                     switch = toggleON_2 + toggleOFF_1
                     material_ON = 2
                 else:
                     switch = toggleON_1 + toggleOFF_2
                     material_ON = 1
+                # if row_count % 2 != 0:  # switching from odd rows to even row
+                #     switch = toggleON_2 + toggleOFF_1
+                #     material_ON = 2
+                # else:
+                #     switch = toggleON_1 + toggleOFF_2
+                #     material_ON = 1
                 f.write(switch)
                 row_count += 1  ## moves loop to next row block
