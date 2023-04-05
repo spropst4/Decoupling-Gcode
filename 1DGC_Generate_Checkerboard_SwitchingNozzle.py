@@ -22,7 +22,7 @@ def setpress(pressure):
     ####format for arduino#####
     format_command = str(hexcommand)
     format_command = '\\x'.join(format_command[i:i + 2] for i in range(0, len(format_command), 2))
-    format_command = '\\x'+format_command
+    format_command = '\\x' + format_command
     ##########################
 
     hexcommand = wrap(hexcommand,
@@ -78,72 +78,70 @@ def setpress(pressure):
     return finalcommand
 def togglepress():
     # IMPORTS
-    import serial
-    from codecs import encode
-    from textwrap import wrap
     toggle = str("b'\\x05\\x02\\x30\\x34\\x44\\x49\\x20\\x20\\x43\\x46\\x03'")
     return toggle
 
-## prints 2 materials
 
-yes = 1
-no = 0
+## this version turns on only material 1
+
+### Are you checking pattern on Qndirty/do you want G0 movements?
+G0_moves = False  # false meanse all moves will be G1
+
+### Do you want the material to stay on during y-movves?
+y_move_ON = True  # false means you want material to turn off during y-moves
 
 ## Are you applying offsets and initial pause?
-apply_offset = no
-
-offset = 1.4  # for F=15 #2.5mm for F=25
-pause = 500  # ms ; initial pause before starting
+apply_offset = False
+offset = 2.5  # 1.4  # for F=15 #2.5mm for F=25
 
 ##INPUTS#############################################################################################################
 # Desired XYZ motion
-x = 10
-y = 0.8
-z = 1.2  # 0.58
+x = 1
+y = 0.58  # 1
+z = 0.6  # 1  # 0.58
 Z_var = "Z"
 
-col = 3
-rows = 3
+col = 50
+rows = 50
+
+total_width = col * x
+total_height = rows * x
+number_lines_to_print = int(total_height / y)
+print("number_lines_to_print = ", number_lines_to_print)
+
+lines_per_row = int(number_lines_to_print / rows)
+if lines_per_row <= 1:
+    lines_per_row += 1
+print("lines_per_row (rounded to a whole number) = ", lines_per_row)
+number_lines_to_print = lines_per_row * rows
+print("number_lines_to_print (updated so that number of lines per row is a whole number) = ", number_lines_to_print)
 
 # Feedrate
-# F = 25  # mm/sec
-# F = F * 60  # mm/min
+F = 10  # mm/sec
+F = F * 60  # mm/min
 
-pressure = [29, 29]
+pressure = [35, 35]
 
 ######################################################################################################################
-
-
 com = ["serialPort1", "serialPort2"]
 
-setpressL =str('\n\r'+com[0] +'.write('  + str(setpress(pressure[0])) + ')') #set pressure material 1
-setpressR =str('\n\r'+com[1] +'.write('  + str(setpress(pressure[1])) + ')') #set pressure material 2
+setpress1 = str('\n\r' + com[0] + '.write(' + str(setpress(pressure[0])) + ')') # material 1
+setpress2 = str('\n\r' + com[1] + '.write(' + str(setpress(pressure[1])) + ')') # material 2
+# setpressCore = '\n\r Pressure Material 1'  # material 1
+# setpressShell = '\n\r Pressure Material 2'  # material 2
 
+toggleON_1 = str('\n\r' + com[0] + '.write(' + str(togglepress()) + ')') # turn on material 1
+toggleOFF_1 = toggleON_1
+# toggleON_Core = '\n\rMaterial 1 ON'
+# toggleOFF_Core = '\n\rMaterial 1 OFF'
 
-toggleON_L = str('\n\r'+com[0] +'.write('  + str(togglepress()) + ')') # start 1st material
-toggleOFF_L = toggleON_L
+toggleON_2 = str('\n\r' + com[1] + '.write(' + str(togglepress()) + ')')  #start 2nd material
+toggleOFF_2 = toggleON_2 #'\n'  # "\nM792 ;SEND Ultimus_IO["+str(comRight)+"]= 0" #stop 2nd material
+# toggleON_Shell = '\n\rMaterial 2 ON'
+# toggleOFF_Shell = '\n\rMaterial 2 OFF'
 
-toggleON_R = str('\n\r'+com[1] +'.write('  + str(togglepress()) + ')')  #start 2nd material
-toggleOFF_R = toggleON_R
-
-if apply_offset == yes:
-    offset = offset
-    pause = pause
-
-    offset_pos = "\n\rG1 X" + str(offset) + "\n\r"
-    offset_neg = "\n\rG1 X" + str(-offset) + "\n\r"
-
-    offset_pos2 = ""  # "\n\rG1 X" + str(offset) + "\n\r" #material 2
-    offset_neg2 = ""  # "\n\rG1 X" + str(-offset) + "\n\r" #material 2
-
-else:
+if apply_offset == False:
     offset = 0
-    pause = 0
-    offset_pos = ""
-    offset_neg = ""
-
-    offset_pos2 = ""  # material 2
-    offset_neg2 = ""  # material 2
 
 ## Defined XYZ (don't change
 X = " X" + str(x - offset)
@@ -156,344 +154,100 @@ _Z = " " + Z_var + str(-z)
 
 move_pos_x = "\nG1" + X
 move_neg_x = "\nG1" + _X
-move_y = "\n\rG1" + Y + "\n\r"
+move_pos_y = "\n\rG1" + Y
+move_neg_y = "\n\rG1" + _Y
 
-lines = int(x / y)
-print(lines)
-## material 2 move x
-move_pos_2 = move_pos_x  # "\nG0" + X
-move_neg_2 = move_neg_x  # "\nG0" + _X
+move_pos_x_offset = "\nG1 X" + str(offset)
+move_neg_x_offset = "\nG1 X" + str(-offset)
 
-### combining varaibles from old codes...
-material_1_ON = toggleON_L
-material_1_OFF = toggleOFF_L
-
-material_2_ON = toggleON_R
-material_2_OFF = toggleOFF_R
-
+row_count = 1
+material_ON = 1
 with open("1DGC_Generate_Checkerboard_SwitchingNozzle_gcode.txt", 'w') as f:
     f.write("\n\r;------------Set Pressures------------")
-    f.write(setpressL)
-    f.write(setpressR)
+    f.write(setpress1)
+    f.write(setpress2)
+    f.write(toggleON_1)
+    for i in range(number_lines_to_print):
+        current_line = i + 1
+        if i > 1:
+            f.write("\n------------- new line -------------------")
 
-    # f.write(toggleON_L)
-    # f.write('\nG1 X15')
-    # f.write(toggleOFF_L)
-    # f.write(toggleON_R)
-    # f.write('\nG1 X15')
-    # f.write(move_y)
-    # f.write(toggleOFF_R)
-    #
-    # f.write(toggleON_L)
-    # f.write('\nG1 X-15')
-    # f.write(toggleOFF_L)
-    # f.write(toggleON_R)
-    # f.write('\nG1 X-15')
-    # f.write(move_y)
-    # f.write(toggleOFF_R)
-    #
-    # f.write(toggleON_L)
-    # f.write('\nG1 X15')
-    # f.write(toggleOFF_L)
-    # f.write(toggleON_R)
-    # f.write('\nG1 X15')
-    # f.write(move_y)
-    # f.write(toggleOFF_R)
-    #
-    # f.write(toggleON_L)
-    # f.write('\nG1 X-15')
-    # f.write(toggleOFF_L)
-    # f.write(toggleON_R)
-    # f.write('\nG1 X-15')
-    # f.write(toggleOFF_R)
-    # f.write('\nG1 Y3')
+        ############ defining the x-movements; i.e., is it moving + or -, are there G0 moves, are there offset
+        if current_line % 2 != 0:  ## odd line
+            move_x_1 = move_pos_x
+            move_x_code_offset_1 = move_pos_x_offset
+            move_x_final_col_1 = "\nG1 X" + str(x)
+            move_x_2 = move_x_1
+            move_x_code_offset_2 = move_x_code_offset_1
+            move_x_final_col_2 = move_x_final_col_1
 
-    if col % 2 == 0:  # even number of rows and col
-        for r in range(rows):
-            f.write("\n\r;-------------ROW " + str(r + 1) + "-------------")
-            if (r + 1) % 2 > 0:  # odd row
-                for l in range(lines):
-                    f.write("\n\r;---------LINE " + str(l + 1) + "---------")
-                    if (l + 1) % 2 > 0:  # odd line
-                        for c in range(col):
-                            if (c + 1) == col:
-                                f.write(material_2_ON)
-                                f.write("\r\nG1 X" + str(x))
-                                f.write(move_y)
+            if G0_moves == True:
+                move_x_2 = "\nG0" + X
+                move_x_code_offset_2 = "\nG0 X" + str(offset)
+                move_x_final_col_2 = "\nG0 X" + str(x)
+        else:
+            move_x_1 = move_neg_x
+            move_x_code_offset_1 = move_neg_x_offset
+            move_x_final_col_1 = "\nG1 X" + str(-x)
+            move_x_2 = move_x_1
+            move_x_code_offset_2 = move_x_code_offset_1
+            move_x_final_col_2 = move_x_final_col_1
 
+            if G0_moves == True:
+                move_x_2 = "\nG0" + _X
+                move_x_code_offset_2 = "\nG0 X" + str(-offset)
+                move_x_final_col_2 = "\nG0 X" + str(-x)
 
-                            elif (c + 1) % 2 > 0:  # odd column
-                                if (c + l + r) == 0:  # first line, row, column
-                                    f.write(material_1_ON)
-                                    f.write(move_pos_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_pos)
+        ############ deterning what material to turn on or off
+        if current_line <= number_lines_to_print / rows * row_count:
+            for j in range(col):
+                if (j + 1) == col:  ## if the last column
+                    if material_ON == 1:
+                        move_x_code = move_x_final_col_1
+                        move_x_code_offset = '\r'
+                        switchOFF = toggleOFF_1
+                        switchON = toggleON_1
+                    elif material_ON == 2:
+                        move_x_code = move_x_final_col_2
+                        move_x_code_offset = '\r'
+                        switchOFF = toggleOFF_2
+                        switchON = toggleON_2
 
-                                elif (c + l) == 0:  # first line, row, column
-                                    f.write(material_1_ON)
-                                    f.write(move_pos_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_pos)
+                    switch = switchOFF + move_pos_y + switchON  ### to turn material off during y-moves
+                    if y_move_ON == True:
+                        switch = '\n' + move_pos_y  ### to keep material on during y-moves
 
-                                else:
-                                    f.write(move_pos_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_pos)
+                    if current_line == number_lines_to_print:  ## if the last column and the end of the print
+                        if material_ON == 1:
+                            switch = toggleOFF_1
+                        elif material_ON == 2:
+                            switch = toggleOFF_2
+                elif material_ON == 1:
+                    move_x_code = move_x_1
+                    move_x_code_offset = move_x_code_offset_1
+                    switch = toggleON_2 + toggleOFF_1
+                    material_ON = 2
+                elif material_ON == 2:
+                    move_x_code = move_x_2
+                    move_x_code_offset = move_x_code_offset_2
+                    switch = toggleON_1 + toggleOFF_2
+                    material_ON = 1
 
-                            else:  # even column
-                                f.write(material_2_ON)
-                                f.write(move_pos_2)
-                                f.write(material_2_OFF)
-                                f.write(offset_pos)
+                ############ actually writing the code to the text file... finally
+                f.write(move_x_code)
+                f.write('\n;--------------')
+                f.write(switch)
+                if apply_offset == True:
+                    f.write(move_x_code_offset)
 
-
-                    else:  # even line
-                        for c in range(col):
-                            if (c + 1) == col:
-                                if (l + 1) == lines:
-                                    f.write(material_1_ON)
-                                    f.write(move_neg_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_neg)
-                                    f.write(move_y)
-
-                                else:
-                                    f.write(material_1_ON)
-                                    f.write("\r\nG1 X" + str(-x))
-                                    f.write(move_y)
-
-
-                            elif (c + 1) % 2 == 0:  # even column
-                                f.write(material_1_ON)
-                                f.write(move_neg_x)
-                                f.write(material_1_OFF)
-                                f.write(offset_neg)
-
-
-                            else:  # odd column
-                                if (c == 0):
-                                    f.write(move_neg_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_neg)
-
-
-                                else:
-                                    #                                    f.write(material_2_ON)
-                                    f.write(move_neg_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_neg)
-
-
-            else:  # even rows
-                for l in range(lines):
-                    f.write("\n\r;---------LINE " + str(l + 1) + "---------")
-                    if (l + 1) % 2 > 0:  # odd line
-                        for c in range(col):
-                            if (c + 1) == col:
-                                f.write(material_1_ON)
-                                f.write("\r\nG1 X" + str(x))
-                                f.write(move_y)
-
-                            elif (c + 1) % 2 > 0:  # odd column
-                                if (c + l) == 0:  # first line and column
-                                    f.write(material_2_ON)
-                                    f.write(move_pos_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_pos)
-
-                                else:
-                                    f.write(move_pos_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_pos)
-
-
-                            else:  # even column
-                                f.write(material_1_ON)
-                                f.write(move_pos_x)
-                                f.write(material_1_OFF)
-                                f.write(offset_pos)
-
-
-                    else:  # even line
-                        for c in range(col):
-                            if (c + 1) == col:
-                                if (l + 1) == lines:
-                                    f.write(material_2_ON)
-                                    f.write(move_neg_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_neg)
-                                    f.write(move_y)
-
-                                else:
-                                    f.write(material_2_ON)
-                                    f.write("\r\nG1 X" + str(-x))
-                                    f.write(move_y)
-
-
-
-                            elif (c + 1) % 2 == 0:  # even column
-                                f.write(material_2_ON)
-                                f.write(move_neg_2)
-                                f.write(material_2_OFF)
-                                f.write(offset_neg)
-
-
-                            else:  # odd column
-                                if (c == 0):
-                                    f.write(move_neg_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_neg)
-
-                                else:
-                                    f.write(material_1_ON)
-                                    f.write(move_neg_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_neg)
-
-
-    ## odd number of rows and col
-    else:
-        for r in range(rows):
-            f.write("\n\r;-------------ROW " + str(r + 1) + "-------------")
-            if (r + 1) % 2 > 0:  # odd row
-                for l in range(lines):
-                    f.write("\n\r;---------LINE " + str(l + 1) + "---------")
-                    if (l + 1) % 2 > 0:  # odd line
-                        for c in range(col):
-                            if (c + 1) == col:
-                                f.write(material_1_ON)
-                                f.write(offset_pos)
-                                f.write("\r\nG1 X" + str(x))
-                                f.write(move_y)
-
-                            elif (c + 1) % 2 > 0:  # odd column
-                                if (c + l + r) == 0:  # first line, row, column
-                                    f.write(material_1_ON)
-                                    f.write(move_pos_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_pos)
-
-                                elif (c + l) == 0:  # first line, column
-                                    f.write(material_1_ON)
-                                    f.write(move_pos_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_pos)
-
-                                else:
-                                    f.write(move_pos_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_pos)
-
-
-                            else:  # even column
-                                f.write(material_2_ON)
-                                f.write(move_pos_2)
-                                f.write(material_2_OFF)
-                                f.write(offset_pos2)
-
-                    else:  # even line
-                        for c in range(col):
-                            if (c + 1) == col:
-                                if (l + 1) == lines:
-                                    f.write(material_1_ON)
-                                    f.write(offset_neg)
-                                    f.write(move_neg_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_neg)
-                                    f.write(move_y)
-
-                                else:
-                                    f.write(material_1_ON)
-                                    f.write(offset_neg)
-                                    f.write("\r\nG1 X" + str(-x))
-                                    f.write(move_y)
-
-
-
-                            elif (c + 1) % 2 == 0:  # even column
-                                f.write(material_2_ON)
-                                f.write(move_neg_2)
-                                f.write(material_2_OFF)
-                                f.write(offset_neg2)
-
-
-                            else:  # odd column
-                                if (c == 0):
-                                    f.write(move_neg_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_neg)
-
-                                else:
-                                    f.write(material_1_ON)
-                                    f.write(offset_neg)
-                                    f.write(move_neg_x)
-                                    f.write(material_1_OFF)
-                                    f.write(offset_neg)
-
-            else:  # even rows
-                for l in range(lines):
-                    f.write("\n\r;---------LINE " + str(l + 1) + "---------")
-                    if (l + 1) % 2 > 0:  # odd line
-                        for c in range(col):
-                            if (c + 1) == col:
-                                f.write(material_2_ON)
-                                f.write("\r\nG1 X" + str(x))
-                                f.write(move_y)
-
-                            elif (c + 1) % 2 > 0:  # odd column
-                                if (c + l) == 0:  # first line, column
-                                    f.write(material_2_ON)
-                                    f.write(move_pos_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_pos2)
-
-                                else:
-                                    f.write(move_pos_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_pos2)
-
-
-                            else:  # even column
-                                f.write(material_1_ON)
-                                f.write(offset_pos)
-                                f.write(move_pos_x)
-                                f.write(material_1_OFF)
-                                f.write(offset_pos)
-
-                    else:  # even line
-                        for c in range(col):
-                            if (c + 1) == col:
-                                if (l + 1) == lines:
-                                    f.write(material_2_ON)
-                                    # f.write(move_neg_2)
-                                    f.write("\r\nG1 X" + str(-x))
-                                    f.write(material_2_OFF)
-                                    f.write(offset_neg2)
-                                    f.write(move_y)
-
-                                else:
-                                    f.write(material_2_ON)
-                                    # f.write(move_neg_2)
-                                    f.write("\r\nG1 X" + str(-x))
-                                    f.write(move_y)
-
-
-                            elif (c + 1) % 2 == 0:  # even column
-                                f.write(material_1_ON)
-                                f.write(offset_neg)
-                                f.write(move_neg_x)
-                                f.write(material_1_OFF)
-                                f.write(offset_neg)
-
-                            else:  # odd column
-                                if (c == 0):
-                                    f.write(move_neg_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_neg2)
-
-                                else:
-                                    f.write(material_2_ON)
-                                    f.write(move_neg_2)
-                                    f.write(material_2_OFF)
-                                    f.write(offset_neg2)
-
+            ############ determines what to do on the last lines of each row
+            if current_line == number_lines_to_print / rows * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
+                f.write("\r\n;--------------------------------- new row --------------------------------")
+                if row_count % 2 != 0:  # switching from odd rows to even row
+                    switch = toggleON_2 + toggleOFF_1
+                    material_ON = 2
+                else:
+                    switch = toggleON_1 + toggleOFF_2
+                    material_ON = 1
+                f.write(switch)
+                row_count += 1  ## moves loop to next row block
