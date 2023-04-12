@@ -1,5 +1,3 @@
-####################################### Use variation of below in Time-based code
-
 import numpy as np
 def find_theta(I, J, X, Y):
     ## finds angle between intersecting lines
@@ -106,6 +104,56 @@ for i in range(len(Gcommand_list)):
 print(arc_length_list)
   
   
+# ##### compiles Gcode      
+# Xf = X_list[0]
+# Yf = Y_list[0]
+# I0 = I_list[0]
+# J0 = J_list[0]
+# Gcommand = Gcommand_list[0]  
+# for i in range(1, len(Gcommand_list)):
+#     print(i)
+#     if Gcommand_list[i-1] == Gcommand_list[i] and I_list[i]==I_list[i-1]- X_list[i-1]:
+#         Xf += X_list[i]
+#         Yf += Y_list[i]
+#         I = I0
+#         J = J0
+#     else:
+#         print(Gcommand, " X",Xf," Y",Yf, " I",I, " J",J)
+#         Xf = X_list[i]
+#         Yf = Y_list[i]
+#         I0 = I_list[i]
+#         J0 = J_list[i]
+#         Gcommand = Gcommand_list[i]
+
+# print(Gcommand, " X",Xf," Y",Yf, " I",I, " J",J)
+
+#print(Gcommand, " X",Xf," Y",Yf, " I",I, " J",J)
+        
+        
+'''try next (concentric circles split into semi-circles)'''
+
+circle_diam = 20
+Gcommand_list = []
+X_list = []
+Y_list = []
+I_list = []
+J_list = []
+i = 0
+while circle_diam > 0:
+    Y_list.append(0)
+    J_list.append(0)
+    Gcommand_list.append("G3")
+    if i == 0: 
+        X_list.append(-circle_diam)
+        I_list.append(-circle_diam/2)
+    elif (i+1)%2 != 0: ## odd lines
+        circle_diam -= 2
+        X_list.append(-circle_diam)
+        I_list.append(-circle_diam/2)
+    else:
+        X_list.append(circle_diam)
+        I_list.append(circle_diam/2)
+    i += 1
 ##### compiles Gcode      
 Xf = X_list[0]
 Yf = Y_list[0]
@@ -113,46 +161,30 @@ I0 = I_list[0]
 J0 = J_list[0]
 Gcommand = Gcommand_list[0]  
 for i in range(1, len(Gcommand_list)):
-    print(i)
     if Gcommand_list[i-1] == Gcommand_list[i] and I_list[i]==I_list[i-1]- X_list[i-1]:
         Xf += X_list[i]
         Yf += Y_list[i]
         I = I0
         J = J0
+        printed_command = False
+
     else:
         print(Gcommand, " X",Xf," Y",Yf, " I",I, " J",J)
+        print("G0 X-1")
         Xf = X_list[i]
         Yf = Y_list[i]
         I0 = I_list[i]
         J0 = J_list[i]
         Gcommand = Gcommand_list[i]
-
-print(Gcommand, " X",Xf," Y",Yf, " I",I, " J",J)
-
-#print(Gcommand, " X",Xf," Y",Yf, " I",I, " J",J)
-        
-        
-'''to try next (concentric circles split into semi-circles)
-G91
-G0 X5
-G3 X-10 Y0 I-5 J0
-G3 X10 Y0 I5 J0
-
-G0 X-1
-G3 X-8 Y0 I-4 J0
-G3 X8 Y0 I4 J0
-
-G0 X-1
-G3 X-6 Y0 I-3 J0
-G3 X6 Y0 I3 J0
-
-G0 X-1
-G3 X-4 Y0 I-2 J0
-G3 X4 Y0 I2 J0
-
-G0 X-1
-G3 X-2 Y0 I-1 J0
-G3 X2 Y0 I1 J0
-'''
-
-        
+        printed_command = True
+if printed_command == False:
+    print(Gcommand, " X",Xf," Y",Yf, " I",I, " J",J)
+ 
+ 
+'''Outputs "traditional" gcode '''        
+print("\r\r\n")
+for i in range(len(Gcommand_list)):
+    print(Gcommand_list[i], " X",X_list[i]," Y",Y_list[i], " I",I_list[i], " J",J_list[i])
+    print('Switch materials')
+    if (i+1)%2 == 0:
+        print("G0 X-1")
