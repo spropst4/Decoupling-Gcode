@@ -196,13 +196,19 @@ print("method 1: for G2: theta = ", 2*math.pi - abs(Ex7_method1))
 
 print("**note:for method 1: if theta = 0, add 2pi because it is a full circle")
 
-
+### note in above sections I accidently switched G2 and G3. I fixed them for the conclusions below
 print("**\n\rsome conclusions:")
 print("1) use Method 1")
-print("2) for G2 moves: if theta <= 0 add 2pi (or 360 degrees)")
-print("3) for G3 moves: if theta < 0, take absolute value of theta")
-print("4) for G3 moves: if theta >=0, theta = 2pi - abs(theta) ")
+print("2) for G3 moves: if theta <= 0 add 2pi (or 360 degrees)")
+print("3) for G2 moves: if theta < 0, take absolute value of theta")
+print("4) for G2 moves: if theta >=0, theta = 2pi - abs(theta) ")
 
+
+
+
+
+ 
+ 
 
 
 
