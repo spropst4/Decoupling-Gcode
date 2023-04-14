@@ -17,9 +17,9 @@ decel = -1000#-700 # mm/s^2
 offset = 0 #use a negative number to increase length of time/material being on (units in mm)
 start_delay =0 #(units in mm)
 testing = "30x30 checkerboard, 3 rows, 3 col, y = 0.58, feed = " +str(feed) + " mm/s, accel = " + str(accel) + " mm/s^2"
-gcode_txt_imported = "1DGC_Generate_Checkerboard_M1.txt"
+gcode_txt_imported = "1DGC_Generate_ConcentricCirclesSemi_gcode.txt"
 
-final_gcode_txt_export = "1DGC_Generate_Checkerboard_M1_aerotech.txt"
+final_gcode_txt_export = "1DGC_Generate_ConcentricCirclesSemi_aerotech.txt"
 
 
 number_of_ports_used = 1 # (aka number of materials used)
@@ -340,8 +340,9 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
             for j in range(len(Sum_coord_dict[i])):
                 dist = Sum_coord_dict[i][j]
                 variable = Sum_var_dict[i][j]
-                if dist != 0:
+                if variable != 0 :
                     coordinates += str(variable) + str(dist) + " "
+
 
                 #print(coordinates)
             f.write("\n\r" + coordinates)
