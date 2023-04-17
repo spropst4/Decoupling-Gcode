@@ -1,4 +1,3 @@
-
 def openport(port):
     # IMPORTS
     import serial
@@ -7,41 +6,43 @@ def openport(port):
     timeout = 2
 
     return serial.Serial("COM" + str(port), baudrate=baudrate, bytesize=bytesize, timeout=timeout, stopbits=serial.STOPBITS_ONE)
-
-
-
 ############################## INPUTS ####################################
 import math
 import numpy as np
 from math import sqrt
 import time
 
-start_time = time.time()
-
+from datetime import datetime
+from datetime import date
+now = datetime.now() # datetime object containing current date and time
+current_date = date.today()
+dt_string = now.strftime("%d/%m/%Y %H:%M:%S")     # dd/mm/YY H:M:S
 ############################ INPUTS #############################################
-############################ INPUTS #############################################
-feed = 25 # feedrate mm/s
+feed = 15 # feedrate mm/s
 accel = 1000#700 # mm/s^2
 decel = -1000#-700 # mm/s^2
 
+offset = 0 #use a negative number to increase length of time/material being on (units in mm)
+start_delay =0 #(units in mm)
+testing = "circles" #"30x30 checkerboard, 3 rows, 3 col, y = 0.58, feed = " +str(feed) + " mm/s, accel = " + str(accel) + " mm/s^2"
+gcode_txt_imported = "1DGC_Generate_Checkerboard_CoreShell_gcode.txt"
 
-gcode_txt_imported = "1DGC_Generate_Gradient_M1_gcode.txt"#"1DGC_Generate_Checkerboard_M1_gcode.txt"#"1DGC_Y_move_accel_test_gcode.txt"
-final_gcode_txt_export = "1DGC_Generate_Gradient_M1_aerotech10.txt"
-testing = "checkerboard" #"y = 0.2, feed = " +str(feed) + " mm/s, accel = " + str(accel) + " mm/s^2"
-offset = 0 #2.5 #-2#0  #use a negative number to increase length of time/material being on (units in mm)
-start_offset = 0 #5 # core-shell
-start_delay = 0 #2 #3.5 #(units in mm)
-number_of_ports_used = 1 # (aka number of materials used)
+final_gcode_txt_export = "1DGC_Generate_Checkerboard_CoreShell_aerotech.txt"
+
+
+number_of_ports_used = 2 # (aka number of materials used)
 
 Z_var = "D"
-z_height = 0.5
+z_height = 1
 z_o= -150 + z_height
 
 home = False  #do you want to home it? (True = yes)
 
+# Open the port for the python-hyrel connection
+
 # Open the ports for the pressure box
-press_com1 = 5 # core
-press_com2 = 4 # shell
+press_com1 = 4 # core
+press_com2 = 5 # shell
 
 serialPort1 = openport(press_com1)
 serialPort2 = openport(press_com2)
@@ -53,9 +54,9 @@ port_python = 2 #this port is named in aerotech code to connect to python
 #########################################################################
 print("Feedrate = ", feed, "mm/s")
 print("Acceleration = ", accel, "mm/s^2", "\nDeceleration = ", decel, "mm/s^2")
-print("Pressure Box Ports: COM", press_com1, " and COM", press_com2)
-print("Python-Hyrel Port: COM", port_python)
+print("\r\nImporting Gcode....")
 
+start_time = time.time()
 print("\r\nImporting Gcode....")
 
 ## open and read in gcode txt file into a list - remove comments, spaces, random characters
@@ -66,185 +67,295 @@ def open_gcode(gcode_txt):
             gcode_list.append(myline.strip('\n'))
         gcode_list = [x for x in gcode_list if x != ""] # removes spaces
         #gcode_list = [x for x in gcode_list if ";" not in x] # removes comments
-        gcode_list = [x for x in gcode_list if ";-" not in x]  # removes comments
+        gcode_list = [x for x in gcode_list if ";--" not in x]  # removes comments
+        gcode_list = [x for x in gcode_list if "---" not in x]  # removes comments
         #print('Original: ', gcode_list)
         gcode.close()
         return gcode_list
 gcode_list = open_gcode(gcode_txt_imported)
-
+# print(gcode_list)
 print("Translating Gcode to Time....")
 
 ## splits up gcode into directions, distances, G command type (G1, G2, G3, etc)
 ## create a gcode,  distance, and direction dictionary
-parse_start = time.time()
+start = time.time()
 def parse_gcode(gcode_list):
-    ## find specific characters in a string
-    def find(s, ch):  # s = string to search, ch = character to find
-        # s = a string
-        # ch = character to find
-        return [i for i, ltr in enumerate(s) if ltr == ch]
 
-    ## pythagoream thm
-    def pythag(x, y):
-        return (sqrt(abs(float(x)) ** 2 + abs(float(y)) ** 2))
+    ## Finds G-command (i.e., G1, G2, G3)
+    def find_G(gcode_dict):  # s = string to search, ch = character to find
+        for elem in enumerate(gcode_dict):
+            if "G" in elem[1]:
+                return True, elem[1] # finds location of character, strips it, and outputs numerical number
+        else:
+            return False, elem[1]
+
+    def find_distances(gcode_dict, ch):  # s = string to search, ch = character to find
+        # ch = character to find
+        result = 0,0
+        for elem in enumerate(gcode_dict):
+            if ch in elem[1]:
+                result = float(elem[1].strip(ch)), ch # finds location of character, strips it, and outputs numerical number
+                break
+
+        return result
+
+    ## pythag thm
+    def pythag(x, y, z):
+        return (sqrt(abs(float(x)) ** 2 + abs(float(y)) ** 2 + abs(float(z)) ** 2))
 
     ## find arc_angle
-    def arc_angle(X, Y, I, J):
-        dx = X - I
-        dy = Y - J
-        angle = np.atan2(dy, dx)
-        if angle < 0:
-            angle = (np.pi * 2) + angle
-        return angle
+    def find_theta(X, Y, I, J): # finds angle between intersecting lines
+        import math
+        from math import atan2
+        a = math.atan2(-J, -I)
+        b = math.atan2(Y - J, X - I)
+        theta = b - a
+        return theta
 
-    X_index = {}
-    Y_index = {}
-    Z_index = {}
-    distance_commands_dict = {}
+    G_command_dict = {}
     gcode_dict = {}
-    direction_dict = {}
-    g_command_dict = {}
-    direction_list = []
-    distance_list = []
-    g_command_list = []
+
+    X_dist_dict = {}
+    Y_dist_dict = {}
+    Z_dist_dict = {}
+    I_dist_dict = {}
+    J_dist_dict = {}
+    All_dist_dict = {}
+    All_var_dict = {}
+    distance_commands_dict = {}
+    slope_dict = {}
+    count = 0
     for i in range(len(gcode_list)):
         gcode_dict[i] = gcode_list[i].split(" ")
-        find_x = find(gcode_list[i], "X")
-        find_y = find(gcode_list[i], "Y")
-        find_z = find(gcode_list[i], "Z")
-        X_index[i] = find_x
-        Y_index[i] = find_y
-        Z_index[i] = find_z
-        if 'G1' in gcode_dict[i]:
-            g_command_dict[i] = 'G1'
-            g_command_list.append('G1')
-            if X_index[i] != [] and Y_index[i] != []:
-                x = gcode_dict[i][1].strip("X")
-                y = gcode_dict[i][2].strip("Y")
-                distance_commands_dict[i] = pythag(x, y)
-                direction_dict[i] = "Y/X" + str(float(y) / float(x))
-                distance_list.append(distance_commands_dict[i])
-                direction_list.append(direction_dict[i])
 
-            if X_index[i] != [] and Y_index[i] == []:
-                distance = gcode_dict[i][1].strip("X").strip("Y")
-                distance_commands_dict[i] = float(distance)
-                direction_dict[i] = "X"
-                distance_list.append(distance_commands_dict[i])
-                direction_list.append(direction_dict[i])
+        ## Stores type of G-command for each line
+        # G_command_dict[i] = find_G(gcode_dict[i], "G")
 
-            if X_index[i] == [] and Y_index[i] != []:
-                distance = gcode_dict[i][1].strip("X").strip("Y")
-                distance_commands_dict[i] = float(distance)
-                direction_dict[i] = "Y"
-                distance_list.append(distance_commands_dict[i])
-                direction_list.append(direction_dict[i])
+        find_G_result = find_G(gcode_dict[i])
 
-            if X_index[i] == [] and Y_index[i] == [] and Z_index[i] != []:
-                distance = gcode_dict[i][1].strip("X").strip("Y").strip("Z")
-                distance_commands_dict[i] = float(distance)
-                direction_dict[i] = "Z"
-                distance_list.append(distance_commands_dict[i])
-                direction_list.append(direction_dict[i])
+        ## Stores distance values for each command
+        find_X = find_distances(gcode_dict[i], "X")
+        find_Y = find_distances(gcode_dict[i], "Y")
+        find_Z = find_distances(gcode_dict[i], "Z")
+        find_I = find_distances(gcode_dict[i], "I")
+        find_J = find_distances(gcode_dict[i], "J")
+
+        if find_G_result[0] == True:
+            G_command_dict[count] = find_G_result[1]
+            X_dist_dict[count] = find_X[0]
+            Y_dist_dict[count] = find_Y[0]
+            Z_dist_dict[count] = find_Z[0]
+            I_dist_dict[count] = find_I[0]
+            J_dist_dict[count] = find_J[0]
+
+            All_dist_dict[count] = [X_dist_dict[count], Y_dist_dict[count], Z_dist_dict[count], I_dist_dict[count], J_dist_dict[count]]
+            All_var_dict[count] = [find_X[1], find_Y[1], find_Z[1], find_I[1], find_J[1]]
+
+            ### Linear Commands
+            direction_check = []
+            if G_command_dict[count] == 'G1':
+                distance = pythag(X_dist_dict[count], Y_dist_dict[count], Z_dist_dict[count])
+                for elem in All_var_dict[count]:
+                    if elem != 0:
+                        direction_check.append(elem)
+                        # direction_dict[count].append(elem)
+
+                if "X" in direction_check and "Y" in direction_check and "Z" not in direction_check:
+                    slope = Y_dist_dict[count]/X_dist_dict[count]
+                else:
+                    slope = False
+
+                slope_dict[count] = slope
+
+            ### Circular commands
+            elif G_command_dict[count] == 'G3' or 'G03':
+                theta = find_theta(X_dist_dict[count], Y_dist_dict[count], I_dist_dict[count], J_dist_dict[count])
+                if theta <= 0:
+                    theta = 2 * np.pi - abs(theta)
+                R = pythag(I_dist_dict[count], J_dist_dict[count], 0)
+                arc_length = R * theta
+                distance = arc_length
+
+                slope_dict[count] = False
+
+
+            elif G_command_dict[count] == 'G2' or 'G02':
+                theta = find_theta(X_dist_dict[count], Y_dist_dict[count], I_dist_dict[count], J_dist_dict[count])
+                if theta < 0:
+                    theta = abs(theta)
+                else:
+                    theta = 2 * np.pi - theta
+                R = pythag(I_dist_dict[count], J_dist_dict[count], 0)
+                arc_length = R * theta
+                distance = arc_length
+
+                slope_dict[count] = False
+
+            count += 1
+            distance_commands_dict[i] = distance
+
 
         else:
-            distance_commands_dict[i] = gcode_dict[i][0]
-
-        if 'G3' in gcode_dict[i]:
-            x = gcode_dict[i][1].strip("X")
-            y = gcode_dict[i][2].strip("Y")
-            I = gcode_dict[i][3].strip("I")
-            J = gcode_dict[i][4].strip("J")
-            R = pythag(I, J)
-
-    # print("X_index = ", X_index)
-    # print("Y_index = ", Y_index)
-
-    # print("gcode_dict = ", gcode_dict)  # don't use outside of this function...
-    # print("distance_commands_dict = ", distance_commands_dict)
-    # print("direction_dict = ", direction_dict)  # don't use outside of this function
-    # print("g_command_dict = ", g_command_dict)  # don't use outside of this function
-    # print("distance_list = ", distance_list)
-    # print("direction_list = ", direction_list)
-    # print("g_command_list = ", g_command_list)
-
-    return distance_commands_dict, distance_list, direction_list, g_command_list
-parsed_gcode = parse_gcode(gcode_list)
-distance_commands_dict = parsed_gcode[0] #contains both distances and commands
-distance_list = parsed_gcode[1] # contains the distances
-direction_list = parsed_gcode[2] # contains the directions, i.e., X, Y, Y/X (diagonal)
-g_command_list = parsed_gcode[3] # contains the G commands
-parse_end = time.time()
-print("Time to run parse_gcode = ", parse_end - parse_start)
+            command = find_G_result[1]
+            distance_commands_dict[i] = command
 
 
-condense_start = time.time()
-## creates simplified gcode for 3d printer and for use in acceleration profile
-def condense_gcode(distance_list):
-    sum_distance = distance_list[0]
-    current_direction = direction_list[0]
-    current_g_command = g_command_list[0]
-    current_gcode = current_direction + str(sum_distance)
+    # print(gcode_dict)
+    # print(G_command_dict)
+    # print(X_dist_dict)
+    # print(Y_dist_dict)
+    # print(Z_dist_dict)
+    # print(I_dist_dict)
+    # print(J_dist_dict)
+    # print(All_dist_dict)
+    # print(All_var_dict)
+    # print(slope_dict)
+    # print(distance_commands_dict)
 
-    sum_dist_list = [sum_distance]
-    sum_dir_list = [current_direction]
-    sum_g_list = [current_g_command]
-    sum_gcode_list = [current_gcode]
+    return gcode_dict, G_command_dict, X_dist_dict, Y_dist_dict, Z_dist_dict, I_dist_dict, J_dist_dict, All_dist_dict, All_var_dict, slope_dict, distance_commands_dict
+parse_output = parse_gcode(gcode_list)
+gcode_dict = parse_output[0]
+G_command_dict = parse_output[1]
+X_dist_dict = parse_output[2]
+Y_dist_dict = parse_output[3]
+Z_dist_dict = parse_output[4]
+I_dist_dict = parse_output[5]
+J_dist_dict = parse_output[6]
+All_dist_dict = parse_output[7]
+All_var_dict = parse_output[8]
+slope_dict = parse_output[9]
+distance_commands_dict = parse_output[10]
 
-    group_dist_accel_dict = {}
-    group_abs_dist_accel_dict = {}
-    group_dist_list = [sum_distance]
-    group_sum_dist_list = [sum_distance]
+print("distance_commands_dict = ", distance_commands_dict)
+print("time to parse_gcode = ", time.time() - start)
+
+
+## Combines "like" gcode lines into a continuous path (used to create final gcode and acceleration path)
+start = time.time()
+def condense_gcode(G_command_dict, All_var_dict, X_dist_dict, Y_dist_dict, Z_dist_dict, I_dist_dict, J_dist_dict):
+    ## pythag thm
+    def pythag(x, y, z):
+        return (sqrt(abs(float(x)) ** 2 + abs(float(y)) ** 2 + abs(float(z)) ** 2))
+    ## find arc_angle
+    def find_theta(X, Y, I, J):  # finds angle between intersecting lines
+        import math
+        from math import atan2
+        a = math.atan2(-J, -I)
+        b = math.atan2(Y - J, X - I)
+        theta = b - a
+        return theta
 
     count = 0
-    for i in range(1,len(distance_list)):
-        if direction_list[i] == direction_list[i-1]:
-            sum_distance += distance_list[i]
-            count = count
-            sum_dist_list[count] = sum_distance
-            current_direction = direction_list[i]
-            current_g_command = g_command_list[i]
-            sum_dir_list[count] = current_direction
-            sum_g_list[count] = current_g_command
-            sum_gcode_list[count] = (current_direction + str(sum_distance))
-            group_dist_list.append(distance_list[i])
-            group_sum_dist_list.append(sum_distance)
+    X_sum = X_dist_dict[0]
+    Y_sum = Y_dist_dict[0]
+    Z_sum = Z_dist_dict[0]
+    I_0 = I_dist_dict[0]
+    J_0 = J_dist_dict[0]
+
+
+    Sum_G_command_dict = {0: G_command_dict[0]}
+    Sum_var_dict = {0: All_var_dict[0]}
+    Sum_coord_dict = {0: [X_dist_dict[0], Y_dist_dict[0], I_dist_dict[0], J_dist_dict[0]]}
+
+    ### Finds initial distances....
+    if G_command_dict[0] == "G1":
+        sum_distance = pythag(X_sum, Y_sum, Z_sum)
+    #### for circles
+    else:
+        theta = find_theta(X_sum, Y_sum, I_0, J_0)
+        if G_command_dict[0] == "G3":
+            if theta <= 0:
+                theta = 2 * np.pi - abs(theta)
+        else:
+            theta = find_theta(X_sum, Y_sum, I_0, J_0)
+            if theta < 0:
+                theta = abs(theta)
+            else:
+                theta = 2 * np.pi - theta
+
+        R = pythag(I_0, J_0, 0)
+        sum_distance = R * theta
+
+    Sum_distance_dict = {0:sum_distance}
+
+    for i in range(1, len(G_command_dict)):
+        current_G_command = G_command_dict[i]
+        current_var = All_var_dict[i]
+        ## Combines "like" gcode lines into a continuous path
+        if G_command_dict[i] == G_command_dict[i - 1] and All_var_dict[i] == All_var_dict[i - 1] and slope_dict[i] == slope_dict[i-1]:
+            # '''G1 Commands'''
+            if current_G_command == "G1":
+                X_sum += X_dist_dict[i]
+                Y_sum += Y_dist_dict[i]
+                Z_sum += Z_dist_dict[i]
+
+            # '''G2/G3 Commands'''
+            elif (round(I_dist_dict[i], 9) == round(I_dist_dict[i-1] -X_dist_dict[i-1]), 9) and (round(J_dist_dict[i], 9) == round(J_dist_dict[i-1] - Y_dist_dict[i-1]), 9):
+                X_sum += X_dist_dict[i]
+                Y_sum += Y_dist_dict[i]
+                print("X_sum = ", X_sum)
+                if round(X_sum, 9) == 0:
+                    X_sum = 0
+                if round(Y_sum, 9) == 0:
+                    Y_sum = 0
+
+                # I_0 = I_dist_dict[i]        # I value is always referenced from starting point
+                # J_0 = J_dist_dict[i]        # J value is always referenced from starting point
 
         else:
             count += 1
-            group_dist_list = []
-            group_sum_dist_list = []
-            sum_distance = distance_list[i]
-            current_direction = direction_list[i]
-            current_g_command = g_command_list[i]
-            sum_dist_list.append(sum_distance)
-            sum_dir_list.append(current_direction)
-            sum_g_list.append(current_g_command)
-            sum_gcode_list.append(current_direction + str(sum_distance))
-            group_dist_list.append(distance_list[i])
-            group_sum_dist_list.append(sum_distance)
+            X_sum = X_dist_dict[i]
+            Y_sum = Y_dist_dict[i]
+            Z_sum = Z_dist_dict[i]
+            I_0 = I_dist_dict[i]  # I value is always referenced from starting point
+            J_0 = J_dist_dict[i]  # J value is always referenced from starting point
 
-        group_dist_accel_dict[count] = group_dist_list
-        group_abs_dist_accel_dict[count] = group_sum_dist_list
+        ### Finds total distances that will be used in acceleration profile
+        if current_G_command == "G1":
+            sum_distance = pythag(X_sum, Y_sum, Z_sum)
 
-    # print("sum_dist_list = ", sum_dist_list)
-    # print("sum_dir_list = ", sum_dir_list)
-    # print("sum_g_list = ", sum_g_list)
-    # print("sum_gcode_list = ", sum_gcode_list)
-    # print("group_dist_accel_dict = ", group_dist_accel_dict)
-    # print("group_abs_dist_accel_dict = ", group_abs_dist_accel_dict)
-    return sum_dist_list, sum_g_list, sum_gcode_list
-condense_gcode_output = condense_gcode(distance_list)
-sum_dist_list = condense_gcode_output[0] # creates list of distance where each entry represents a new acceleration profile
-sum_g_list = condense_gcode_output[1]
-sum_gcode_list = condense_gcode_output[2]
-condense_end = time.time()
-print("Time to run condense_gcode = ", condense_end - condense_start)
+        #### for circles
+        else:
+            theta = find_theta(X_sum, Y_sum, I_0, J_0)
+            if current_G_command == "G3":
+                if theta <= 0:
+                    theta = 2 * np.pi - abs(theta)
+            else:
+                theta = find_theta(X_sum, Y_sum, I_0, J_0)
+                if theta < 0:
+                    theta = abs(theta)
+                else:
+                    theta = 2 * np.pi - theta
 
+            R = pythag(I_0, J_0, 0)
+            sum_distance = R * theta
 
-def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed,sum_gcode_list, sum_g_list):
-    ## create txt for gcode used in 3d printer
-    with open(final_gcode_txt_export, "w", 0) as f:
+        Sum_G_command_dict[count] = current_G_command # for writing condensed gcode
+        Sum_var_dict[count] = current_var # for writing condensed gcode
+        Sum_coord_dict[count] = [X_sum, Y_sum, Z_sum, I_0, J_0] # for writing condensed gcode
+
+        Sum_distance_dict[count] = sum_distance # for writing acceleration profile
+
+    # print(Sum_G_command_dict) # G-commands
+    # print(Sum_var_dict) # variables, X, Y, Z....
+    # print(Sum_coord_dict) # coordinate values
+    #
+    # print(Sum_distance_dict)
+
+    return Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, Sum_distance_dict
+condense_results = condense_gcode(G_command_dict, All_var_dict, X_dist_dict, Y_dist_dict, Z_dist_dict, I_dist_dict, J_dist_dict)
+Sum_G_command_dict = condense_results[0]
+Sum_var_dict = condense_results[1]
+Sum_coord_dict = condense_results[2]
+Sum_distance_dict = condense_results[3]
+print("time to condense_gcode = ", time.time() - start)
+print(Sum_G_command_dict)
+print(Sum_var_dict)
+## creates condensed gcode file
+start = time.time()
+def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict):
+    # create txt for gcode used in 3d printer
+    with open(final_gcode_txt_export, "w") as f:
         f.write("DVAR $hFile\n\r")
         f.write('G71 \nG76 \nG91	;G90 = absolute, G91 = relative \nG68 \nRAMP TYPE LINEAR X Y \nRAMP RATE ' +str(accel)+ '\n\rVELOCITY OFF\n\r')
 
@@ -268,18 +379,31 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed,sum_gcode_lis
         f.write('\n\rFILEWRITE $hFile, "start1"')
         f.write('\nG4 P3\n\r')
 
-        for i in range(len(sum_gcode_list)):
-            coord = sum_gcode_list[i]
-            G_command = sum_g_list[i]
-            f.write( G_command + " " + coord + "\r\n")
-        f.write('\n\rFILECLOSE $hFile\nM02')
-    print("\n\r", final_gcode_txt_export, " has been created\n\r")
-    return f
-create_gcode = generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed,sum_gcode_list, sum_g_list)
+        for i in range(len(Sum_coord_dict)):
+            G_command = Sum_G_command_dict[i]
+            if G_command == "G3":
+                G_command = "CCW"
+            if G_command == "G2":
+                G_command = "CW"
+            coordinates = str(G_command) + " "
+            for j in range(len(Sum_coord_dict[i])):
+                dist = Sum_coord_dict[i][j]
+                variable = Sum_var_dict[i][j]
+                if variable != 0 :
+                    coordinates += str(variable) + str(dist) + " "
 
-accel_profile_start = time.time()
+            f.write("\n\r" + coordinates)
+
+        f.write('\n\rFILECLOSE $hFile\nM02')
+    print("\n", final_gcode_txt_export, "has been created\n\r")
+    return f
+generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict)
+print("time to generate_gcode = ", time.time() - start)
+
+
 ## creates acceleration profile
-def accel_profile(sum_dist_list):
+start = time.time()
+def accel_profile(Sum_distance_dict):
     import time
     def accel_length(v_0, v_f, accel):
         from sympy import symbols, solve
@@ -352,9 +476,9 @@ def accel_profile(sum_dist_list):
     decel_abs_dist = 0
     decel_abs_time = 0
 
-    for i in range(len(sum_dist_list)):
+    for i in range(len(Sum_distance_dict)):
         if accel == 0:
-            steady_state_dist = abs(sum_dist_list[i])
+            steady_state_dist = abs(Sum_distance_dict[i])
             accel_dist = 0
             decel_dist = 0
             accel_time = 0
@@ -374,12 +498,12 @@ def accel_profile(sum_dist_list):
                 decel_dist = flag_decel_result[str(feed) + str(decel)][0]
                 decel_time = flag_decel_result[str(feed) + str(decel)][1]
 
-            steady_state_dist = abs(sum_dist_list[i]) - accel_dist - decel_dist
+            steady_state_dist = abs(Sum_distance_dict[i]) - accel_dist - decel_dist
 
 
         if steady_state_dist <= 0:
             steady_state_dist = 0
-            accel_dist = abs(sum_dist_list[i]) * 0.5
+            accel_dist = abs(Sum_distance_dict[i]) * 0.5
             decel_dist = accel_dist
             key = str(accel_dist)
             try:
@@ -419,15 +543,14 @@ def accel_profile(sum_dist_list):
     # print("accel_dist_abs_dict = ", accel_dist_abs_dict) # used in time-based function
     # print("accel_time_abs_dict = ", accel_time_abs_dict) # used in time-based function
     return accel_dist_abs_dict, accel_time_abs_dict
-accel_profile_output = accel_profile(sum_dist_list)
+accel_profile_output = accel_profile(Sum_distance_dict)
 accel_profile_distance = accel_profile_output[0]
 accel_profile_time = accel_profile_output[1]
-accel_profile_end = time.time()
-print("Time to run accel_profile = ", accel_profile_end-accel_profile_start)
+print("time to create accel_profile = ", time.time() - start)
 
 ## creates dictionary of time and commands
-calc_time_start = time.time()
-def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_dict):
+start = time.time()
+def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict):
     def findt(v_0, accel, x):
         import time
         from sympy import symbols, solve
@@ -459,11 +582,11 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
     flag_rel_dist_decel = {}
     flag_count =0
     count = 0
-    for j in range(len(distance_dict)):
-        if type(distance_dict[j]) == str:
-            time_dict[j] = distance_dict[j]
+    for j in range(len(distance_commands_dict)):
+        if type(distance_commands_dict[j]) == str:
+            time_dict[j] = distance_commands_dict[j]
         else:
-            distance += abs(distance_dict[j])
+            distance += abs(distance_commands_dict[j])
             for i in range(index_start, len(accel_profile_distance)):
                 accel_region = accel_profile_distance[i][0]
                 max_velocity_region = accel_profile_distance[i][1]
@@ -532,31 +655,29 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
             time_output = t
             time_list.append(time_output)
             time_dict[j] = time_output
+    # print("max_vel_count = ", count)
+    # print("flag count = ", flag_count)
     return time_dict
-
-
-time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict )
-start_delay_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel,[start_delay])[0])
+time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict)
+start_delay_time = float(
+    distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [start_delay])[0])
 offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)])[0])
-start_offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(start_offset)])[0])
-
 
 if offset < 0:
     offset_time = -offset_time
 
 #offset_time = offset/feed
 
-calc_time_end = time.time()
-print("start_delay_time = ", start_delay_time, "\noffset_time = ", offset_time)
-print("Time to run distance2time = ", calc_time_end-calc_time_start)
+print("time to create distance2time = ", time.time() - start)
 
-final_dict_start = time.time()
+start = time.time()
 ## creates final dictionaries of commands and times to use
 def final_dicts(time_dict):
     command_list = []
     time_based_dict_final = {}
     command_dict_final = {}
 
+    count_t = 0
     dict_count_t = 0
     start_count_c = 0
     initial_commands = []
@@ -567,6 +688,7 @@ def final_dicts(time_dict):
         if type(entry) != str:
             time_based_dict_final[dict_count_t] = entry
             command_list = []
+            count_t += 1
             start_count_c = 0
             initial_commands_trigger = 1
         else:
@@ -596,16 +718,17 @@ initial_commands = final_dicts_output[2]
 set_press = '[%s]' % ', '.join(map(str,initial_commands[:number_of_ports_used]))
 initial_toggle ='[%s]' % ', '.join(map(str, initial_commands[number_of_ports_used:]))
 final_dict_end = time.time()
-print("length of final_dicts = ", final_dict_end - final_dict_start)
+print("time to create final_dicts = ", time.time() - start)
 
 end_time = time.time()
 total_time = end_time - start_time
 print("\nTotal time to translate distance to time: ", total_time)
 
-print("time_based_dict_final = ", time_based_dict_final)
 print("set_press: ", set_press)
 print("initial_toggle: ", initial_toggle)
+print("time_based_dict_final = ", time_based_dict_final)
 print("command_dict_final = ", command_dict_final)
+
 
 ###### WAITING FOR PING ##################################
 print("\nWaiting for ping to start....")
