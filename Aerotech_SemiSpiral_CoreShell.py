@@ -98,12 +98,12 @@ pressure = [21, 26] # 1 is core, 2 is shell
 com = [4, 5] #core 1, shell 2
 
 ## Are you applying offsets?
-apply_offset = True
+apply_offset = False
 offset = 2.5                                    # 1.4  # for F=15 #2.5mm for F=25
 
 ## Apply intro?
-intro_flag = True                               # mark True if you want to add an intro; mark False if you don't want to add an intro
-ending_flag = True                              # mark True if you want to add an ending; mark False if you don't want to add an ending
+intro_flag = False                             # mark True if you want to add an intro; mark False if you don't want to add an intro
+ending_flag = False                              # mark True if you want to add an ending; mark False if you don't want to add an ending
 intro_gcode = "Spropst_aerotech_intro.txt"
 ending_gcode = "Spropst_aerotech_end.txt"
 
@@ -121,6 +121,15 @@ toggleOFF_1 = str('\n\rFILEWRITE ' + str(file_name[0]) + ", "+ str(togglepress()
 toggleON_2 = str('\n\rFILEWRITE ' + str(file_name[1]) + ", "+ str(togglepress())+ " 'Shell ON")  # turn on shell
 toggleOFF_2 = str('\n\rFILEWRITE ' + str(file_name[1]) + ", "+ str(togglepress())+ " 'Shell OFF")
 
+# setpress1 = ""
+# setpress2 = ""
+#
+# toggleON_1 = ""
+# toggleOFF_1 = ""
+#
+# toggleON_2 = ""
+# toggleOFF_2 = ""
+
 if apply_offset == False:
     offset = 0
 
@@ -133,11 +142,11 @@ J_list = []
 Command_list = []
 i = 0
 
-while circle_diam > 0:
+while circle_diam > filament_width:
+    if i > 0:
+        circle_diam -= filament_width
     if apply_offset == False:
         if (i + 1) % 2 != 0:  ## odd lines
-            if i > 0:
-                circle_diam -= 2 * filament_width
             Gcommand_list.append("G3")
             X_list.append(-circle_diam)
             I_list.append(-circle_diam / 2)
@@ -147,27 +156,16 @@ while circle_diam > 0:
 
         else:
             Gcommand_list.append("G3")
-            X_list.append(circle_diam - filament_width)
-            I_list.append((circle_diam - filament_width) / 2)
+            X_list.append(circle_diam)
+            I_list.append((circle_diam) / 2)
             Y_list.append(0)
             J_list.append(0)
             Command_list.append(True)
 
-            # Gcommand_list.append("G1")
-            # X_list.append(-filament_width)
-            # I_list.append(0)
-            # Y_list.append(0)
-            # J_list.append(0)
-            # Command_list.append(False)
-
-
     else:
+        R = circle_diam / 2
+        theta = offset / R  # calculate central angle for offset
         if (i+1)%2 != 0:
-            if i > 0:
-                circle_diam -= 2 * filament_width
-            R = circle_diam / 2
-            if R > 0:
-                theta = offset / R  # calculate central angle for offset
             Gcommand_list.append("G3")
             X_offset = - (R * np.cos(theta) + R)
             Y_offset = R * np.sin(theta)
@@ -180,12 +178,26 @@ while circle_diam > 0:
             J_list.append(J_offset)
             Command_list.append(True)
 
+            Gcommand_list.append("G3")
+            X_remain = -(R - R * np.cos(theta))
+            Y_remain = -(R * np.sin(theta))
+            I_remain = R * np.cos(theta)
+            J_remain = -R * np.sin(theta)
+
+            X_list.append(X_remain)
+            Y_list.append(Y_remain)
+            I_list.append(I_remain)
+            J_list.append(J_remain)
+            Command_list.append(False)
+
         else:
             Gcommand_list.append("G3")
-            X_offset = ((R - filament_width) * np.cos(theta)) * 2
-            Y_offset = -((R - filament_width) * np.sin(theta)) * 2
-            I_offset = (R - filament_width) * np.cos(theta)
-            J_offset = -(R - filament_width) * np.sin(theta)
+            # X_offset = (R * np.cos(theta)) * 2
+            # Y_offset = -(R * np.sin(theta)) * 2
+            X_offset = (R * np.cos(theta) + R)
+            Y_offset = -R * np.sin(theta)
+            I_offset = circle_diam/2
+            J_offset = 0
 
             X_list.append(X_offset)
             Y_list.append(Y_offset)
@@ -194,10 +206,10 @@ while circle_diam > 0:
             Command_list.append(True)
 
             Gcommand_list.append("G3")
-            X_remain = (R - filament_width) - (R - filament_width)*np.cos(theta)
-            Y_remain = (R - filament_width)*np.sin(theta)
-            I_remain = -(R - filament_width)*np.cos(theta)
-            J_remain = (R - filament_width)*np.sin(theta)
+            X_remain = R - R*np.cos(theta)
+            Y_remain = R *np.sin(theta)
+            I_remain = -R*np.cos(theta)
+            J_remain = R*np.sin(theta)
 
             X_list.append(X_remain)
             Y_list.append(Y_remain)
