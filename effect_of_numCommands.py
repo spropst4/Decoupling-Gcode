@@ -44,10 +44,10 @@ def findt(v_0, accel, x):
             print("error when calcuating time; might be getting an imaginary number.")
     return t
 
-accel = 1000
+accel = 200
 decel = -accel
 
-velocity = 15
+velocity = 20
 
 total_distance = 100                                   # total distance to travel
 smallest_distance_between_commands = 0.1               # smallest distance between commands to test
@@ -99,11 +99,11 @@ print(one_profile_time)
 print(accel_time)
 print(accel_distance)
 
-# importing library
+#importing library
 import csv
-
+#
 # # opening the csv file in 'w' mode
-# file = open('effect_of_numCommands_varyAccel.csv', 'a+', newline='')
+# file = open('effect_of_numCommands_varyFeed_V2.csv', 'w+', newline='')
 #
 # with file:
 #     #identifying header
@@ -117,7 +117,46 @@ import csv
 #     writer.writeheader()
 #     file.close()
 #
-# file = open('effect_of_numCommands_varyAccel.csv', 'a+', newline='')
+# file = open('effect_of_numCommands_varyFeed_V2.csv', 'a+', newline='')
 # with file:
 #     writer = csv.writer(file)
 #     writer.writerows(data_all)
+
+from csv import writer
+from csv import reader
+
+# Open the input_file in read mode and output_file in write mode
+with open('effect_of_numCommands_varyAccel_V2.csv', 'r') as read_obj:
+    # Create a csv.reader object from the input file object
+    csv_reader = reader(read_obj)
+    # Read each row of the input csv file as list
+    count = 0
+    header = True
+    update_data = []
+    for row in csv_reader:
+        prev_list = row
+        # Append the default text in the row / list
+        if header == True:
+            prev_list.append("a = " + str(accel))
+            update_data.append(prev_list)
+            header = False
+            labels = True
+        elif labels == True:
+            prev_list.append("total time (s)")
+            update_data.append(prev_list)
+            labels = False
+        else:
+            prev_list.append(total_times_list[count])
+            update_data.append(prev_list)
+            count += 1
+
+print(update_data)
+print(count)
+print(len(total_times_list))
+
+read_obj.close()
+
+file = open('effect_of_numCommands_varyAccel_V2.csv', 'w', newline='')
+with file:
+    writer = csv.writer(file)
+    writer.writerows(update_data)
