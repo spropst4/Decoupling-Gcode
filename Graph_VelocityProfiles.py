@@ -39,7 +39,7 @@ mpl.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 mpl.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 # Functions
-def accel_length(v_0, v_f, accel):
+def accel_time_linear(v_0, v_f, accel):
     from sympy import symbols, solve
     # v_0 = starting velocity
     # max_v = desired feedrate #mm/s
@@ -63,29 +63,69 @@ def accel_length(v_0, v_f, accel):
     # t_steady = round(t_steady, 10)
     return x_steady, t_steady
 
+def accel_time_S_curve(v_0, jerk_ratio, velocity_input, accel_input):
+    '''
+    https://math.stackexchange.com/questions/2232105/question-about-s-curve-acceleration-and-deceleration-control
+    http://www.et.byu.edu/~ered/ME537/Notes/Ch5.pdf
+    '''
+
+    from sympy import symbols, solve
+
+    t_accel = symbols('t_accel')
+
+    # v_m = v_0 + 0.5*jerk_ratio*t**2 # from zero to mid accel
+    # v_max = v_0 - J*t_m**2 + 2*J*t_m*t - 0.5*J*t**2 # from mid to max
+
+    # solve for t_m
+    t = t_accel
+    accel_max = accel_input/(1 - (jerk_ratio * 0.5))
+    J =  2 * accel_max/(t_accel * jerk_ratio)
+    v2 = velocity_input - accel_max**2/(2*J)
+
+    find_t_accel = v2 + accel_max*t - J*t**2/2
+
+    t_accel = solve(find_t_accel)[0]
+
+    return float(t_accel)
+
+def accel_time_Half_Sine(velocity_input, accel_input):
+    '''
+    https://math.stackexchange.com/questions/2232105/question-about-s-curve-acceleration-and-deceleration-control
+    http://www.et.byu.edu/~ered/ME537/Notes/Ch5.pdf
+    '''
+
+    from sympy import symbols, solve
+    import numpy as np
+    t_accel = symbols('t_accel')
+    accel_max = accel_input/0.637
+    P = 2*t_accel
+    B = 2*np.pi/P
+    t = t_accel
+    find_t_accel = -accel_max/B *np.cos(np.pi) + accel_max/B - velocity_input #-accel_max/B *(np.cos(B*t)) - velocity_input
+    t_accel = solve(find_t_accel)[0]
+    return float(t_accel)
+
+
 def accel_linear(accel_input, t_total, t_accel):
+    time_range = list(np.linspace(0, t_total, num = 1000))
+
     accel_list = [0]
     t_list_total = [0]
 
-    t_list_pos = list(np.linspace(0, t_accel, num=100))
-    for t in t_list_pos:
-        accel_current = accel_input
-        accel_list.append(accel_current)
-        t_list_total.append(t)
+    for i in range(len(time_range)):
+        t_current = time_range[i]
 
-    t_zero_i = t_accel
-    t_zero_f = t_accel + (t_total - t_accel*2)
-    t_list_0 = list(np.linspace(t_zero_i, t_zero_f, num=100))
-    for t in t_list_0:
-        accel_current = 0
-        accel_list.append(accel_current)
-        t_list_total.append(t)
+        if 0 <= t_current < t_accel:
+            accel_current = accel_input
 
-    t_list_neg = list(np.linspace(t_zero_f, t_zero_f+t_accel, num = 100))
-    for t in t_list_neg:
-        accel_current = -accel_input
+        elif t_accel <= t_current < t_total-t_accel:
+            accel_current = 0
+
+        else:
+            accel_current = -accel_input
+
         accel_list.append(accel_current)
-        t_list_total.append(t)
+        t_list_total.append(t_current)
 
     accel_list.append(0)
     t_list_total.append(t_total)
@@ -104,183 +144,146 @@ def accel_halfSine(accel_input, t_total, t_accel):
     D = vertical shift
 
     '''
+    time_range = list(np.linspace(0, t_total, num=1000))
+
     t_list_total = []
     accel = []
     accel_max = accel_input / 0.637
 
     period = 2*t_accel
     B_const = (2*np.pi)/period
-    print(B_const)
 
-    t_pos_f = t_accel
-    t_list_pos = list(np.linspace(0, t_pos_f, num = 100))
-    for t in t_list_pos:
-        accel_current = accel_max*np.sin(B_const*t)
-        if round(accel_current)== 0:
+    for i in range(len(time_range)):
+        t_current = time_range[i]
+        if 0 <= t_current < t_accel:
+            accel_current = accel_max*np.sin(B_const*t_current)
+            if round(accel_current) == 0:
+                accel_current = 0
+
+
+        elif t_accel <= t_current < t_total-t_accel:
             accel_current = 0
-        accel.append(accel_current)
-        t_list_total.append(t)
 
-    t_zero_f = t_pos_f + (t_total - 2 * t_pos_f)
-    t_list_0 = list(np.linspace(t_pos_f, t_zero_f, num = 100))
-    for t in t_list_0:
-        accel_current = 0
-        accel.append(accel_current)
-        t_list_total.append(t)
 
-    t_list_neg = list(np.linspace(t_zero_f, t_total, num = 100))
-    for t in t_list_neg:
-        t_calc = t - t_zero_f
-        accel_current = -accel_max * np.sin(B_const*t_calc)
-        if round(accel_current) == 0:
-            accel_current = 0
+        else:
+            t_current_calc = t_current - (t_total - t_accel)
+            accel_current = -accel_max * np.sin(B_const*t_current_calc)
+            if round(accel_current) == 0:
+                accel_current = 0
+
         accel.append(accel_current)
-        t_list_total.append(t)
+        t_list_total.append(t_current)
 
     return t_list_total, accel
 
 def accel_S_curve(accel_input, t_total, t_accel, jerk_ratio):
     '''
     jerk ratio: https://product-help.schneider-electric.com/Machine%20Expert/V1.1/en/m241pto/m241pto/M241Lib-PTO-Configuration/M241Lib-PTO-Configuration-5.htm
+    e.g., JerkRatio 66%: 2/3 of the acceleration and deceleration time is spent in increasing and decreasing the acceleration and deceleration value.
+
     Peak acceleration equations: https://docs.roboticsys.com/rmp/topics/motion/motion-concepts/s-curve-motion-profiles-command-acceleration-vs.-peak-acceleration
+
+    More on S-curves: http://www.et.byu.edu/~ered/ME537/Notes/Ch5.pdf
+
     '''
+    time_range = list(np.linspace(0, t_total, num=1000))
     t_list_total = []
     accel_list = []
     accel_max = accel_input/(1 - (jerk_ratio * 0.5))
 
-    t_accel_half = (t_accel * jerk_ratio) / 2 # time to do the increasing/decr portion
+    t_accel = t_accel
+    t_accel_ratio = (t_accel * jerk_ratio) / 2 # time to do the increasing/decr portion
 
-    # positive acceleration
-    t_neg_incr_f = t_accel_half
-    t_list_neg_dec = np.linspace(0, t_neg_incr_f, num = 33)
-    for t in t_list_neg_dec:
-        if jerk_ratio != 0:
-            accel_current = (accel_max / t_accel_half) * t
-        else:
-            accel_current = accel_max
+    for i in range(len(time_range)):
+        t_current = time_range[i]
 
-        accel_list.append(accel_current)
-        t_list_total.append(t)
+        # acceleration (+)
+        if 0 <= t_current < t_accel:
+            if 0 <= t_current < t_accel_ratio:
+                if jerk_ratio != 0:
+                    accel_current = (accel_max / t_accel_ratio) * t_current
+                else:
+                    accel_current = accel_max
 
-    t_const_pos_i = t_neg_incr_f
-    t_const_pos_f = t_const_pos_i + (t_accel - 2 * t_accel_half)
-    t_list_const_pos = np.linspace(t_const_pos_i, t_const_pos_f, num=34)
-    for t in t_list_const_pos:
-        accel_current = accel_max
-        accel_list.append(accel_current)
-        t_list_total.append(t)
+            elif t_accel_ratio <= t_current < t_accel - t_accel_ratio:
+                accel_current = accel_max
 
-    t_pos_dec_i = t_const_pos_f
-    t_neg_incr_f = t_pos_dec_i + t_accel_half
-    t_list_pos_dec = np.linspace(t_pos_dec_i, t_neg_incr_f, num=33)
-    for t in t_list_pos_dec:
-        t_calc = t - t_pos_dec_i
-        if jerk_ratio != 0:
-            accel_current = -(accel_max / t_accel_half) * t_calc + accel_max
-        else:
+            else:
+                t_current_calc = t_current - (t_accel - t_accel_ratio)
+                if jerk_ratio != 0:
+                    accel_current = -(accel_max / t_accel_ratio) * t_current_calc + accel_max
+                else:
+                    accel_current = 0
+
+        # acceleration = 0
+        elif t_accel <= t_current < t_total - t_accel:
             accel_current = 0
-        accel_list.append(accel_current)
-        t_list_total.append(t)
 
-    # acceleration = 0
-    t_zero_i = t_accel
-    t_zero_f = t_zero_i + (t_total - 2 * t_accel)
-    t_list_const_pos = np.linspace(t_zero_i, t_zero_f, num=100)
-    for t in t_list_const_pos:
-        accel_current = 0
-        accel_list.append(accel_current)
-        t_list_total.append(t)
-
-    # neg acceleration
-    t_neg_dec_i = t_zero_f
-    t_neg_dec_f = t_neg_dec_i + t_accel_half
-    t_list_neg_dec = np.linspace(t_neg_dec_i, t_neg_dec_f, num=33)
-    for t in t_list_neg_dec:
-        t_calc = t - t_neg_dec_i
-        if jerk_ratio != 0:
-            accel_current = -(accel_max / t_accel_half) * t_calc
+        # deceleration
         else:
-            accel_current = -accel_max
+            if t_total - t_accel <= t_current <  (t_total - t_accel) + t_accel_ratio:
+                t_current_calc = t_current - (t_total - t_accel)
+                if jerk_ratio != 0:
+                    accel_current = -(accel_max / t_accel_ratio) * t_current_calc
+                else:
+                    accel_current = -accel_max
 
-        accel_list.append(accel_current)
-        t_list_total.append(t)
+            elif (t_total - t_accel) + t_accel_ratio <= t_current < t_total - t_accel_ratio:
+                accel_current = -accel_max
 
-    t_const_neg_i = t_neg_dec_f
-    t_const_neg_f = t_const_neg_i + (t_accel - 2 * t_accel_half)
-    t_list_const_pos = np.linspace(t_const_neg_i, t_const_neg_f, num=34)
-    for t in t_list_const_pos:
-        accel_current = -accel_max
+            else:
+                t_current_calc = t_current - (t_total - t_accel_ratio)
+                if jerk_ratio != 0:
+                    accel_current = (accel_max / t_accel_ratio) * t_current_calc - accel_max
+                else:
+                    accel_current = 0
         accel_list.append(accel_current)
-        t_list_total.append(t)
-
-    t_neg_incr_i = t_const_neg_f
-    t_neg_incr_f = t_neg_incr_i + t_accel_half
-    t_list_pos_dec = np.linspace(t_neg_incr_i, t_neg_incr_f, num=33)
-    for t in t_list_pos_dec:
-        t_calc = t - t_neg_incr_i
-        if jerk_ratio != 0:
-            accel_current = (accel_max / t_accel_half) * t_calc - accel_max
-        else:
-            accel_current = 0
-        accel_list.append(accel_current)
-        t_list_total.append(t)
+        t_list_total.append(t_current)
 
     return t_list_total, accel_list
 
-def velocity(t_total, accel_data, velocity_input):
+def velocity(time_data, accel_data):
     import numpy as np
     import scipy
     from scipy.integrate import simpson
-    from scipy.integrate import quad
     from numpy import trapz
 
     vel_current = 0
     vel_list = []
     time_list = []
     incr = 2
-
     for i in range(len(accel_data)-incr):
         start = i
         end = i + incr
-        #vel_current += trapz(accel_data[start:end], dx = incr)
-        vel_current +=simpson(accel_data[start:end], dx = incr)
-        vel_list.append(vel_current/10000)
-
-        time_current = end
-        const_norm = (t_total/(len(accel_data)-1))
-        time_current_norm = time_current*const_norm
-        time_list.append(time_current_norm)
-
-    v_max = max(vel_list)
-    vel_const = velocity_input/v_max
-
-    if v_max != velocity_input:
-        for i in range(len(vel_list)):
-            vel_list[i] = vel_list[i]*vel_const
+        vel_current += trapz(accel_data[start:end], x = time_data[start:end], dx = incr)
+        #vel_current +=simpson(accel_data[start:end], dx = incr)
+        vel_list.append(vel_current)
+        time_current = time_data[end]
+        time_list.append(time_current)
 
     return time_list, vel_list
 
+
 # Create Data
 velocity_input = 20
-
 accel_input = 1000
-t_total = 5
-t_accel_linear = 2 #float(accel_length(0, velocity_input, accel_input)[1])
-t_accel_halfSine = t_accel_linear
-t_accel_Scurve = t_accel_linear
-jerk_ratio = 0.5
+t_total = 0.1
+jerk_ratio = 2/3
+
+t_accel_linear = float(accel_time_linear(0, velocity_input, accel_input)[1])
+t_accel_halfSine = accel_time_Half_Sine(velocity_input, accel_input)
+t_accel_Scurve = accel_time_S_curve(0, jerk_ratio, velocity_input, accel_input)  #t_accel_linear
+
+print(t_accel_linear, t_accel_halfSine, t_accel_Scurve)
 
 accel_linearResult = accel_linear(accel_input, t_total, t_accel_linear)
 accel_halfSineResult = accel_halfSine(accel_input, t_total, t_accel_halfSine)
 accel_ScurveResult = accel_S_curve(accel_input, t_total, t_accel_Scurve, jerk_ratio)
 
-# print(len(accel_linearResult[0]))
 
-vel_LinearResult = velocity(t_total, accel_linearResult[1], velocity_input)
-vel_halfSineResult = velocity(t_total, accel_halfSineResult[1], velocity_input)
-vel_ScurveResult = velocity(t_total, accel_ScurveResult[1], velocity_input)
-
-
+vel_LinearResult = velocity(accel_linearResult[0], accel_linearResult[1])
+vel_halfSineResult = velocity(accel_halfSineResult[0], accel_halfSineResult[1])
+vel_ScurveResult = velocity(accel_ScurveResult[0], accel_ScurveResult[1])
 
 fig_vel, (ax1_v, ax2_v, ax3_v) = plt.subplots(1,3)
 ax1_v.plot(accel_linearResult[0], accel_linearResult[1])
@@ -288,10 +291,8 @@ ax2_v.plot(accel_halfSineResult[0], accel_halfSineResult[1])
 ax3_v.plot(accel_ScurveResult[0], accel_ScurveResult[1])
 
 plt.setp((ax1_v, ax2_v, ax3_v),
-         xlim=(-1,t_total+1),
-         #ylim=(0, accel_input + 2),
-         xticklabels  = [],
-         yticklabels = []
+         xlim=(-t_total/10,t_total+ t_total/10),
+         ylim=(-accel_input - 1000, accel_input + 1000)
          )
 
 # plt.plot(accel_linearResult[0], accel_linearResult[1])
@@ -306,62 +307,63 @@ ax3_a.plot(vel_ScurveResult[0], vel_ScurveResult[1])
 # plt.plot(vel_LinearResult[0], vel_LinearResult[1])
 # plt.plot(vel_halfSineResult[0], vel_halfSineResult[1])
 # plt.plot(vel_ScurveResult[0], vel_ScurveResult[1])
-plt.setp((ax1_a, ax2_a, ax3_a),
-         xlim=(0,t_total),
-         ylim=(0, velocity_input + 2)
+plt.setp((ax1_a, ax2_a, ax3_a)
+         #xlim=(0,t_total),
+         #ylim=(0, velocity_input + 2)
          )
 
 
+# fig_all, (ax2, ax1) = plt.subplots(2,1)
+# x_hsine = []
+# for i in range(len(accel_halfSineResult[0])):
+#     x_current = accel_halfSineResult[0][i] + t_total + 2
+#     x_hsine.append(x_current)
+#
+# x_scurve = []
+# for i in range(len(accel_ScurveResult[0])):
+#     x_current = accel_ScurveResult[0][i] + max(x_hsine) +2
+#     x_scurve.append(x_current)
+#
+# ax1.axhline(0, color = 'gray', alpha = 0.3, linewidth = 0.5)
+# ax1.axvline(0, color = 'gray', alpha = 0.3, linewidth = 0.5)
+# ax1.plot(accel_linearResult[0], accel_linearResult[1])
+# ax1.plot(x_hsine, accel_halfSineResult[1])
+# ax1.plot(x_scurve, accel_ScurveResult[1])
+#
+# x_hsine = []
+# for i in range(len(vel_halfSineResult[0])):
+#     x_current = vel_halfSineResult[0][i] + t_total + 2
+#     x_hsine.append(x_current)
+#
+# x_scurve = []
+# for i in range(len(vel_halfSineResult[0])):
+#     x_current = vel_halfSineResult[0][i] + max(x_hsine) + 2
+#     x_scurve.append(x_current)
+#
+# ax2.axvline(0, color = 'gray', alpha = 0.3, linewidth = 0.5)
+# ax2.plot(vel_LinearResult[0], vel_LinearResult[1])
+# ax2.plot(x_hsine, vel_halfSineResult[1])
+# ax2.plot(x_scurve, vel_ScurveResult[1])
+#
+#
+# ax1.tick_params(axis ='both',
+#                 bottom = False,
+#                 direction ='in',
+#                 labelbottom = False,
+#                 labelleft = False)
+#
+# ax2.tick_params(axis ='both',
+#                 bottom = False,
+#                 direction ='in',
+#                 labelbottom = False,
+#                 labelleft = False)
+#
+# plt.setp(ax2,
+#          xlim=(0,max(x_scurve)+2),
+#          ylim=(0, velocity_input + 2)
+#          )
 
-fig_all, (ax2, ax1) = plt.subplots(2,1)
-x_hsine = []
-for i in range(len(accel_halfSineResult[0])):
-    x_current = accel_halfSineResult[0][i] + t_total + 2
-    x_hsine.append(x_current)
 
-x_scurve = []
-for i in range(len(accel_ScurveResult[0])):
-    x_current = accel_ScurveResult[0][i] + max(x_hsine) +2
-    x_scurve.append(x_current)
-
-ax1.axhline(0, color = 'gray', alpha = 0.3, linewidth = 0.5)
-ax1.axvline(0, color = 'gray', alpha = 0.3, linewidth = 0.5)
-ax1.plot(accel_linearResult[0], accel_linearResult[1])
-ax1.plot(x_hsine, accel_halfSineResult[1])
-ax1.plot(x_scurve, accel_ScurveResult[1])
-
-x_hsine = []
-for i in range(len(vel_halfSineResult[0])):
-    x_current = vel_halfSineResult[0][i] + t_total + 2
-    x_hsine.append(x_current)
-
-x_scurve = []
-for i in range(len(vel_halfSineResult[0])):
-    x_current = vel_halfSineResult[0][i] + max(x_hsine) + 2
-    x_scurve.append(x_current)
-
-ax2.axvline(0, color = 'gray', alpha = 0.3, linewidth = 0.5)
-ax2.plot(vel_LinearResult[0], vel_LinearResult[1])
-ax2.plot(x_hsine, vel_halfSineResult[1])
-ax2.plot(x_scurve, vel_ScurveResult[1])
-
-
-ax1.tick_params(axis ='both',
-                bottom = False,
-                direction ='in',
-                labelbottom = False,
-                labelleft = False)
-
-ax2.tick_params(axis ='both',
-                bottom = False,
-                direction ='in',
-                labelbottom = False,
-                labelleft = False)
-
-plt.setp(ax2,
-         xlim=(0,max(x_scurve)+2),
-         ylim=(0, velocity_input + 2)
-         )
 
 plt.show()
 
