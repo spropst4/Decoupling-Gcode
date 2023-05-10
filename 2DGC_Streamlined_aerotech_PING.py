@@ -30,7 +30,7 @@ gcode_txt_imported = "1DGC_Generate_Checkerboard_M1.txt"
 final_gcode_txt_export = "1DGC_Generate_Checkerboard_M1_aerotech.txt"
 
 number_of_ports_used = 1 # (aka number of materials used)
-resync_type = 'command-based' # direction-based OPTIONS: 'command-based', 'direction-based', False
+resync_type = 'direction-based' # OPTIONS: 'command-based', 'direction-based', False
 resync_number = 20 # number of directions changes between resyncing
 
 Z_var = "D"
@@ -278,20 +278,19 @@ def condense_gcode(resync_number, resync_type, distance_commands_dict,G_command_
     Sum_distance_dict = {0:sum_distance}
 
     resync_trigger_distance_dict = {}            # dictionary that keeps track of where direction changes occur (use to trigger a resync after N number of direction changes). ex: if key = 12, the direction changes between keys 12 and 13 in distance_commands_dict
+    resync_trigger_distance_dict_V2 = {}            # used when in command-based mode
     resync_trigger_numCommand_dict = {}          # dictionary that keeps track of where commands occur (use to trigger a resync after N number of commands). ex: if key = 1, key = 1 in distance_commands_dict is aux command
+
     command_count = 0
     i = 0 # count for number of times a distance command is used
-
     for j in range(len(distance_commands_dict)):
         type_check = type(distance_commands_dict[j])
         if type_check == str:
             command_count +=1
-            #resync_trigger_numCommand_dict[j] = command_count
-            #resync_trigger_numCommand_dict[command_count] = j
 
-            if command_count%resync_number == 0 and resync_type == 'command-based':
-                # resync_trigger_numCommand_dict[command_count] = j
+            if command_count%resync_number == 0:
                 resync_trigger_numCommand_dict[j] = command_count
+
 
         if type_check != str and i < len(G_command_dict) - 1:
             i +=1
@@ -324,12 +323,9 @@ def condense_gcode(resync_number, resync_type, distance_commands_dict,G_command_
                     J_0 = J_dist_dict[i]  # J value is always referenced from starting point
 
 
-                    if dir_change_count%resync_number == 0 and resync_type == 'direction-based':
-                        resync_trigger_distance_dict[j] = dir_change_count
-                        #resync_trigger_distance_dict[dir_change_count] = j
-                    elif resync_type == 'command-based':
-                        resync_trigger_distance_dict[j] = dir_change_count
-                        #resync_trigger_distance_dict[dir_change_count] = j
+                    if dir_change_count%resync_number == 0:
+                        resync_trigger_distance_dict[dir_change_count] = j
+
 
             else:
                 dir_change_count += 1
@@ -339,12 +335,9 @@ def condense_gcode(resync_number, resync_type, distance_commands_dict,G_command_
                 I_0 = I_dist_dict[i]  # I value is always referenced from starting point
                 J_0 = J_dist_dict[i]  # J value is always referenced from starting point
 
-                if dir_change_count % resync_number == 0 and resync_type == 'direction-based':
-                    resync_trigger_distance_dict[j] = dir_change_count
-                    # resync_trigger_distance_dict[dir_change_count] = j
-                elif resync_type == 'command-based':
-                    resync_trigger_distance_dict[j] = dir_change_count
-                    # resync_trigger_distance_dict[dir_change_count] = j
+                if dir_change_count % resync_number == 0:
+                    resync_trigger_distance_dict_V2[j] = dir_change_count
+                    resync_trigger_distance_dict[dir_change_count] = j
 
             ### Finds total distances that will be used in acceleration profile
             if current_G_command == "G1":
@@ -373,49 +366,46 @@ def condense_gcode(resync_number, resync_type, distance_commands_dict,G_command_
             Sum_distance_dict[dir_change_count] = sum_distance # for writing acceleration profile
 
     resync_trigger_distance_dict_2 = {} # to use when command-based
-    for key in resync_trigger_numCommand_dict:
-        loop = True
-        i = 0
-        while True:
-            try:
-                test = resync_trigger_distance_dict[key + i]
-                break
-            except KeyError:
-                test = []
-            try:
-                test = resync_trigger_distance_dict[key - i]
-                i = -i
-                break
-            except KeyError:
-                test = []
-
-            i += 1
-        resync_trigger_distance_dict_2[key + i] = resync_trigger_distance_dict[key + i]
-
     if resync_type == 'command-based':
+        for key in resync_trigger_numCommand_dict:
+            i = 0
+            while True:
+                try:
+                    test = resync_trigger_distance_dict_V2[key + i]
+                    break
+                except KeyError:
+                    test = []
+                try:
+                    test = resync_trigger_distance_dict_V2[key - i]
+                    i = -i
+                    break
+                except KeyError:
+                    test = []
+
+                i += 1
+
         resync_trigger_distance_dict = resync_trigger_distance_dict_2
 
     # print(Sum_G_command_dict) # G-commands
     # print(Sum_var_dict) # variables, X, Y, Z....
-    #print(Sum_coord_dict) # coordinate values
+    # print(Sum_coord_dict) # coordinate values
     # print(Sum_distance_dict)
     print("reset based on number of commands: ", resync_trigger_numCommand_dict)
     print("reset based on distance: ", resync_trigger_distance_dict)
 
 
-    return Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, Sum_distance_dict, resync_trigger_distance_dict, resync_trigger_numCommand_dict
+    return Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, Sum_distance_dict, resync_trigger_distance_dict
 condense_results = condense_gcode(resync_number, resync_type, distance_commands_dict, G_command_dict, All_var_dict,
                                   X_dist_dict, Y_dist_dict, Z_dist_dict, I_dist_dict, J_dist_dict)
 Sum_G_command_dict = condense_results[0]
 Sum_var_dict = condense_results[1]
 Sum_coord_dict = condense_results[2]
 Sum_distance_dict = condense_results[3]
-reset_trigger_distance_dict = condense_results[4]
-reset_trigger_numCommand_dict = condense_results[5]
+resync_trigger_distance_dict = condense_results[4]
 print("time to condense_gcode = ", time.time() - start)
 
 start = time.time()
-def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_number):
+def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_trigger_distance_dict):
     # create txt for gcode used in 3d printer
     resync_PING = ('\n$hFile = FILEOPEN "COM'+str(port_python) +'", 2\nCOMMINIT $hFile, "baud=115200 parity=N data=8 stop=1"\nCOMMSETTIMEOUT $hFile, -1, -1, 1000\n\rFILEWRITE $hFile, "start1"')
 
@@ -454,20 +444,18 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
                     coordinates += str(variable) + str(dist) + " "
 
             f.write("\n\r" + coordinates)
-
-
-            f.write(resync_PING)
+            if i < len(Sum_coord_dict) - 1 and i in resync_trigger_distance_dict:
+                f.write(resync_PING)
 
         f.write('\n\rFILECLOSE $hFile\nM02')
     print("\n", final_gcode_txt_export, "has been created\n\r")
     return f
-
-generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_number)
+generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_trigger_distance_dict)
 print("time to generate_gcode = ", time.time() - start)
 
 ## creates acceleration profile
 start = time.time()
-def accel_profile(Sum_distance_dict):
+def accel_profile(Sum_distance_dict, resync_trigger_distance_dict):
     import time
     def accel_length(v_0, v_f, accel):
         from sympy import symbols, solve
@@ -540,6 +528,7 @@ def accel_profile(Sum_distance_dict):
     decel_abs_dist = 0
     decel_abs_time = 0
 
+    flag_trigger = {}
     for i in range(len(Sum_distance_dict)):
         if accel == 0:
             steady_state_dist = abs(Sum_distance_dict[i])
@@ -606,15 +595,16 @@ def accel_profile(Sum_distance_dict):
     # print("accel_time_dict = ", accel_time_dict) # never used
     # print("accel_dist_abs_dict = ", accel_dist_abs_dict) # used in time-based function
     # print("accel_time_abs_dict = ", accel_time_abs_dict) # used in time-based function
+
     return accel_dist_abs_dict, accel_time_abs_dict
-accel_profile_output = accel_profile(Sum_distance_dict)
+accel_profile_output = accel_profile(Sum_distance_dict, resync_trigger_distance_dict)
 accel_profile_distance = accel_profile_output[0]
 accel_profile_time = accel_profile_output[1]
 print("time to create accel_profile = ", time.time() - start)
 
 ## creates dictionary of time and commands
 start = time.time()
-def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict):
+def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict, resync_trigger_distance_dict):
     def findt(v_0, accel, x):
         import time
         from sympy import symbols, solve
@@ -646,7 +636,12 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
     flag_rel_dist_decel = {}
     flag_count =0
     count = 0
+    time_resync = 0
+    locate_resync = list(resync_trigger_distance_dict.values())
     for j in range(len(distance_commands_dict)):
+        if j in locate_resync:
+            time_resync = accel_profile_time[i+1][0]
+
         if type(distance_commands_dict[j]) == str:
             time_dict[j] = distance_commands_dict[j]
         else:
@@ -657,18 +652,18 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
                 decel_region = accel_profile_distance[i][2]
 
                 if distance >= decel_region:
-                    t_current = accel_profile_time[i][2]
+                    t_current = accel_profile_time[i][2] - time_resync
                     x_current = decel_region
                     t = t_current
                     index_start += 1
 
                 elif distance >= max_velocity_region:
-                    t_current = accel_profile_time[i][1]
+                    t_current = accel_profile_time[i][1] - time_resync
                     x_current = max_velocity_region
                     t = t_current
 
                 elif distance >= accel_region:
-                    t_current = accel_profile_time[i][0]
+                    t_current = accel_profile_time[i][0] - time_resync
                     x_current = accel_region
                     t = t_current
 
@@ -722,14 +717,17 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
     # print("max_vel_count = ", count)
     # print("flag count = ", flag_count)
     return time_dict
-time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict)
+time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict,
+                          resync_trigger_distance_dict)
 start_delay_time = float(
-    distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [start_delay])[0])
-offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)])[0])
+    distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [start_delay], resync_trigger_distance_dict)[0])
+offset_time = float(
+    distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)], resync_trigger_distance_dict)[0])
 
 if offset < 0:
     offset_time = -offset_time
 
+print(time_dict)
 #offset_time = offset/feed
 
 print("time to create distance2time = ", time.time() - start)
