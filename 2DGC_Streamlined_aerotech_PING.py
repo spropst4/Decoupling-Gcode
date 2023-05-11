@@ -22,18 +22,17 @@ feed = 25 # feedrate mm/s
 accel = 1000#700 # mm/s^2
 decel = -1000#-700 # mm/s^2
 
-offset = 0 #use a negative number to increase length of time/material being on (units in mm)
-start_delay = 0 #(units in mm)
+offset =  -2.5#use a negative number to increase length of time/material being on (units in mm)
+start_delay = 5 #(units in mm)
 testing = "PING" #"quick summary"
 
 gcode_txt_imported = "1DGC_Generate_Checkerboard_M1.txt"
-final_gcode_txt_export = "1DGC_Generate_Checkerboard_M1_aerotech.txt"
+final_gcode_txt_export = "1DGC_Generate_Checkerboard_M1_aerotech_PING.txt"
 
 number_of_ports_used = 1 # (aka number of materials used)
 
-
 resync_type = 'direction-based' # OPTIONS: 'command-based', 'direction-based', False
-resync_number = 20 # number of directions changes between resyncing
+resync_number = 34 # number of directions changes between resyncing
 PING_delay = 0.011305268287658692 # from AEROTECH_PING_data.txt
 
 Z_var = "D"
@@ -42,15 +41,13 @@ z_o= -150 + z_height
 
 home = False  #do you want to home it? (True = yes)
 
-# Open the port for the python-hyrel connection
-
 # Open the ports for the pressure box
-# press_com1 = 4 # core
-# press_com2 = 5 # shell
-#
-# serialPort1 = openport(press_com1)
-# serialPort2 = openport(press_com2)
-#
+press_com1 = 5 # core
+press_com2 = 4 # shell
+
+serialPort1 = openport(press_com1)
+serialPort2 = openport(press_com2)
+
 # Open the port for the python-hyrel connection
 port_aerotech = 1 #port named in python code to connect to aerotech
 port_python = 2 #this port is named in aerotech code to connect to python
@@ -230,7 +227,6 @@ All_var_dict = parse_output[8]
 slope_dict = parse_output[9]
 distance_commands_dict = parse_output[10]
 
-print("distance_commands_dict = ", distance_commands_dict)
 print("time to parse_gcode = ", time.time() - start)
 
 ## Combines "like" gcode lines into a continuous path (used to create final gcode and acceleration path)
@@ -415,12 +411,13 @@ Sum_var_dict = condense_results[1]
 Sum_coord_dict = condense_results[2]
 Sum_distance_dict = condense_results[3]
 resync_trigger_distance_dict = condense_results[4]
-
+# print(distance_commands_dict[31])
+# print(Sum_coord_dict[9])
 print("time to condense_gcode = ", time.time() - start)
 start = time.time()
 def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_trigger_distance_dict):
     # create txt for gcode used in 3d printer
-    resync_PING = ('\n$hFile = FILEOPEN "COM'+str(port_python) +'", 2\nCOMMINIT $hFile, "baud=115200 parity=N data=8 stop=1"\nCOMMSETTIMEOUT $hFile, -1, -1, 1000\n\rFILEWRITE $hFile, "start1"')
+    resync_PING = ('\n\rFILEWRITE $hFile, "start"')
 
     with open(final_gcode_txt_export, "w") as f:
         f.write("DVAR $hFile\n\r")
@@ -440,7 +437,10 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
         f.write("G1 F" + str(feed) + "\n\r")
 
         f.write("\n\rFILECLOSE")
-        f.write(resync_PING)
+        f.write('\n$hFile = FILEOPEN "COM' + str(port_python) + '", 2')
+        f.write('\nCOMMINIT $hFile, "baud=115200 parity=N data=8 stop=1"')
+        f.write('\nCOMMSETTIMEOUT $hFile, -1, -1, 1000')
+        f.write('\n\rFILEWRITE $hFile, "start"')
         f.write('\nG4 P3\n\r')
 
         for i in range(len(Sum_coord_dict)):
@@ -464,6 +464,7 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
         f.write('\n\rFILECLOSE $hFile\nM02')
     print("\n", final_gcode_txt_export, "has been created\n\r")
     return f
+
 generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_trigger_distance_dict)
 print("time to generate_gcode = ", time.time() - start)
 
@@ -617,7 +618,6 @@ accel_profile_output = accel_profile(Sum_distance_dict, resync_trigger_distance_
 accel_profile_distance = accel_profile_output[0]
 accel_profile_time = accel_profile_output[1]
 flag_trigger = accel_profile_output[2]
-print(flag_trigger)
 print("time to create accel_profile = ", time.time() - start)
 
 ## creates dictionary of time and commands
@@ -655,8 +655,6 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
     flag_count =0
     count = 0
     time_resync = 0
-    locate_resync = list(resync_trigger_distance_dict.values())
-    print(locate_resync)
     for j in range(len(distance_commands_dict)):
         if type(distance_commands_dict[j]) == str:
             time_dict[j] = distance_commands_dict[j]
@@ -734,23 +732,26 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
             time_list.append(time_output)
             time_dict[j] = time_output
     return time_dict
+
 time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict,
                           resync_trigger_distance_dict, flag_trigger, PING_delay)
 start_delay_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [start_delay],
                                        resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
 offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)],
                                   resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
-print(time_dict)
 if offset < 0:
     offset_time = -offset_time
-
+print(time_dict)
 #offset_time = offset/feed
 
 print("time to create distance2time = ", time.time() - start)
 
 start = time.time()
 ## creates final dictionaries of commands and times to use
-def final_dicts(time_dict):
+def final_dicts(time_dict, resync_trigger_distance_dict):
+    locate_resync = list(resync_trigger_distance_dict.values())
+    resync_key_location = {}
+
     command_list = []
     time_based_dict_final = {}
     command_dict_final = {}
@@ -764,6 +765,10 @@ def final_dicts(time_dict):
         entry = time_dict[i]
         dict_count_c = dict_count_t
         if type(entry) != str:
+
+            if (i) in locate_resync:
+                resync_key_location[dict_count_t] = 'resync'
+
             time_based_dict_final[dict_count_t] = entry
             command_list = []
             count_t += 1
@@ -787,11 +792,43 @@ def final_dicts(time_dict):
     # print("time_based_dict_final = ", time_based_dict_final)
     # print("command_dict_final = ", command_dict_final)
     # print("initial_commands = ", initial_commands )
-    return time_based_dict_final, command_dict_final, initial_commands
-final_dicts_output = final_dicts(time_dict)
+    # print(resync_key_location)
+
+
+    # for key_locate in resync_key_location:
+    #     time_dict_grouped[i] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_key < key <= key_locate])
+    #     command_dict_grouped[i] = dict([(key, val) for key, val in command_dict_final.items() if prev_key < key <= key_locate])
+    #     prev_key = key_locate
+    #     i += 1
+    print(time_based_dict_final)
+    prev_key = 0
+    time_dict_grouped = {}
+    command_dict_grouped = {}
+    first_command = True
+    count = 0
+    for i in range(len(time_based_dict_final)):
+        if i != len(time_based_dict_final)-1 and time_based_dict_final[i+1] < time_based_dict_final[i]:
+            if first_command == True:
+                time_dict_grouped[count] = dict([(key, val) for key, val in time_based_dict_final.items() if 0 <= key <= i])
+                command_dict_grouped[count] = dict([(key, val) for key, val in command_dict_final.items() if 0 <= key <= i])
+                prev_key = i
+                first_command = False
+            else:
+                time_dict_grouped[count] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_key < key <= i])
+                command_dict_grouped[count] = dict([(key, val) for key, val in command_dict_final.items() if prev_key < key <= i])
+                prev_key = i
+            count += 1
+    time_dict_grouped[count] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_key < key <= len(time_based_dict_final)-1])
+    command_dict_grouped[count] = dict([(key, val) for key, val in command_dict_final.items() if prev_key < key <= len(time_based_dict_final)-1])
+
+    #return time_based_dict_final, command_dict_final, initial_commands, resync_key_location
+    return time_dict_grouped, command_dict_grouped, initial_commands, resync_key_location
+
+final_dicts_output = final_dicts(time_dict,resync_trigger_distance_dict)
 time_based_dict_final = final_dicts_output[0]
 command_dict_final = final_dicts_output[1]
 initial_commands = final_dicts_output[2]
+resync_key_location = final_dicts_output[3]
 
 set_press = '[%s]' % ', '.join(map(str,initial_commands[:number_of_ports_used]))
 initial_toggle ='[%s]' % ', '.join(map(str, initial_commands[number_of_ports_used:]))
@@ -802,11 +839,11 @@ end_time = time.time()
 total_time = end_time - start_time
 print("\nTotal time to translate distance to time: ", total_time)
 
-print("set_press: ", set_press)
-print("initial_toggle: ", initial_toggle)
+# print("set_press: ", set_press)
+# print("initial_toggle: ", initial_toggle)
 print("time_based_dict_final = ", time_based_dict_final)
 print("command_dict_final = ", command_dict_final)
-
+print(len(time_based_dict_final), len(command_dict_final))
 
 ###### WAITING FOR PING ##################################
 print("\nWaiting for ping to start....")
@@ -827,8 +864,8 @@ if __name__ == '__main__':
             message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
             print('Received command: ' + message)
 
-            if message == "start1\r\n":
-                pause = 0.011305268287658692 #from AEROTECH_PING_data.txt
+            if message == "start\r\n":
+                #pause = 0.011305268287658692 #from AEROTECH_PING_data.txt
 
                 exec(set_press)
                 print("Setting the pressures....")
@@ -837,39 +874,35 @@ if __name__ == '__main__':
 
     #### Executes Absolute timing ####
     print("Executing time-based code....")
-    time.sleep(3-pause - start_delay_time)
+    time.sleep(3 - PING_delay - start_delay_time)
 
-    i = 0
     exec(initial_toggle)
     start_time = time.time()
-    time_dict_list = []
-    error_list = []
-    real_time_list = []
 
-    while True:
-        bytesToRead = ser.inWaiting()
-        while (i < len(command_dict_final)):
-            if bytesToRead > 0:
-                message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
-                message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
-                print('---------Received RESYNC command at time stamp location ' + i)
+    count = 0
 
-                start_time = time.time()
+    for j in range(len(command_dict_final)):
+        if j > 0:
+            while True:
+                bytesToRead = ser.inWaiting()
+                if bytesToRead > 0:
+                    print('-------------Received command resync number ', j, 'at location ',  count)
+                    start_time = time.time()
+                    break
 
-            current_time_stamp = time_based_dict_final[i] - offset_time
-            real_time = time.time() - start_time
-            if (real_time >= current_time_stamp):
-                exec(command_dict_final[i])
-                print("Time: ", real_time)
-                print("\tCommands: ", command_dict_final[i])
-                print("\tError: ",(error))
+        for i in range(len(command_dict_final[j])):
+            while True:
+                current_time_stamp = time_based_dict_final[j][count] - offset_time
+                real_time = time.time() - start_time
+                if (real_time >= current_time_stamp):
+                    exec(command_dict_final[j][count])
+                    print("Desired time: ", current_time_stamp)
+                    print("Actual Time: ", real_time)
+                    print("Commands: ", command_dict_final[j][count])
+                    break
+            count += 1
 
-                if time_based_dict_final[i] != 0:
-                    time_dict_list.append(current_time_stamp)
-                    real_time_list.append(real_time)
-                    error_list.append(error)
 
-                i += 1
     print("DONE!")
 
     serialPort1.close()
