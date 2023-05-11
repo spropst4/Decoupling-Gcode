@@ -808,62 +808,70 @@ print("time_based_dict_final = ", time_based_dict_final)
 print("command_dict_final = ", command_dict_final)
 
 
-# ###### WAITING FOR PING ##################################
-# print("\nWaiting for ping to start....")
-# if __name__ == '__main__':
-#
-#     ser = openport(port_aerotech)
-#     ser.reset_input_buffer()
-#
-#     told = time.time()
-#     intervals = []
-#
-#     count = 0
-#     while True:
-#         bytesToRead = ser.inWaiting()
-#         if bytesToRead > 0:
-#             print('\r\n------------------')
-#             message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
-#             message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
-#             print('Received command: ' + message)
-#
-#             if message == "start1\r\n":
-#                 pause = 0.011305268287658692#from AEROTECH_PING_data.txt
-#
-#                 exec(set_press)
-#                 print("Setting the pressures....")
-#
-#                 break
-#
-# #### Executes Absolute timing ####
-# print("Executing time-based code....")
-# time.sleep(3-pause - start_delay_time)
-#
-# i = 0
-# exec(initial_toggle)
-# start_time = time.time()
-# time_dict_list = []
-# error_list = []
-# real_time_list = []
-# while (i < len(command_dict_final)):
-#     current_time_stamp = time_based_dict_final[i] - offset_time
-#     # if i == 0:
-#     #     current_time_stamp = current_time_stamp - start_offset_time
-#     real_time = time.time() - start_time
-#     if (real_time >= (current_time_stamp) and i == i):
-#         exec(command_dict_final[i])
-#         error = float(real_time - current_time_stamp)
-#         print("Time: ", real_time)
-#         print("\tCommands: ", command_dict_final[i])
-#         print("\tError: ",(error))
-#
-#         if time_based_dict_final[i] != 0:
-#             time_dict_list.append(current_time_stamp)
-#             real_time_list.append(real_time)
-#             error_list.append(error)
-#
-#         i += 1
-# print("DONE!")
-#
-# serialPort1.close()
-# serialPort2.close()
+###### WAITING FOR PING ##################################
+print("\nWaiting for ping to start....")
+if __name__ == '__main__':
+
+    ser = openport(port_aerotech)
+    ser.reset_input_buffer()
+
+    told = time.time()
+    intervals = []
+
+    count = 0
+    while True:
+        bytesToRead = ser.inWaiting()
+        if bytesToRead > 0:
+            print('\r\n------------------')
+            message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+            message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+            print('Received command: ' + message)
+
+            if message == "start1\r\n":
+                pause = 0.011305268287658692 #from AEROTECH_PING_data.txt
+
+                exec(set_press)
+                print("Setting the pressures....")
+
+                break
+
+    #### Executes Absolute timing ####
+    print("Executing time-based code....")
+    time.sleep(3-pause - start_delay_time)
+
+    i = 0
+    exec(initial_toggle)
+    start_time = time.time()
+    time_dict_list = []
+    error_list = []
+    real_time_list = []
+
+    while True:
+        bytesToRead = ser.inWaiting()
+        while (i < len(command_dict_final)):
+            if bytesToRead > 0:
+                message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+                message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+                print('---------Received RESYNC command at time stamp location ' + i)
+
+                start_time = time.time()
+
+            current_time_stamp = time_based_dict_final[i] - offset_time
+            real_time = time.time() - start_time
+            if (real_time >= current_time_stamp):
+                exec(command_dict_final[i])
+                print("Time: ", real_time)
+                print("\tCommands: ", command_dict_final[i])
+                print("\tError: ",(error))
+
+                if time_based_dict_final[i] != 0:
+                    time_dict_list.append(current_time_stamp)
+                    real_time_list.append(real_time)
+                    error_list.append(error)
+
+                i += 1
+    print("DONE!")
+
+    serialPort1.close()
+    serialPort2.close()
+    ser.close()
