@@ -18,25 +18,25 @@ now = datetime.now() # datetime object containing current date and time
 current_date = date.today()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S")     # dd/mm/YY H:M:S
 ############################ INPUTS #############################################
-feed = 25 # feedrate mm/s
+feed = 20 # feedrate mm/s
 accel = 1000#700 # mm/s^2
 decel = -1000#-700 # mm/s^2
 
-offset =  0#use a negative number to increase length of time/material being on (units in mm)
-start_delay = 0 #(units in mm)
+offset = 3 #use a negative number to increase length of time/material being on (units in mm)
+start_delay = 5 #(units in mm)
 testing = "PING" #"quick summary"
 
-gcode_txt_imported = "1DGC_Generate_Checkerboard_M1.txt"
-final_gcode_txt_export = "1DGC_Generate_Checkerboard_M1_aerotech_PING.txt"
+gcode_txt_imported = "1DGC_Generate_Checkerboard_SwitchingNozzle_gcode.txt" #"1DGC_Generate_Checkerboard_M1.txt"
+final_gcode_txt_export = "1DGC_Generate_Checkerboard_SwitchingNozzle_aerotech_PING.txt"
 
-number_of_ports_used = 1 # (aka number of materials used)
+number_of_ports_used = 2 # (aka number of materials used)
 
-resync_type = 'direction-based' # OPTIONS: 'command-based', 'direction-based', False
-resync_number = 10 # number of directions changes between resyncing
+resync_type =  'direction-based' # OPTIONS: 'command-based', 'direction-based', False
+resync_number = 1 # number of directions changes between resyncing
 PING_delay = 0.011305268287658692 # from AEROTECH_PING_data.txt
 
-Z_var = "D"
-z_height = 1
+Z_var = "C"
+z_height = 1.3
 z_o= -150 + z_height
 
 home = False  #do you want to home it? (True = yes)
@@ -412,7 +412,7 @@ resync_trigger_distance_dict = condense_results[4]
 # print(Sum_coord_dict[9])
 def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_trigger_distance_dict):
     # create txt for gcode used in 3d printer
-    resync_PING = ('\n\r$timer = TIMER(0, PERFORMANCE)\n\rFILEWRITE $hFile, $timer')
+    resync_PING = ('\n\rFILEWRITE $hFile, TIMER(0, PERFORMANCE)')
 
     with open(final_gcode_txt_export, "w") as f:
         f.write("DVAR $hFile\n\rDVAR $timer\n\r")
@@ -529,6 +529,7 @@ def accel_profile(Sum_distance_dict, resync_trigger_distance_dict):
         #t = round(t, 10)
         return float(t)
 
+    mismatch_resync_avg = 0.008547314489603301
     accel_dist_dict = {}
     accel_time_dict = {}
     accel_dist_abs_dict = {}
@@ -587,7 +588,7 @@ def accel_profile(Sum_distance_dict, resync_trigger_distance_dict):
 
         steady_state_time = steady_state_dist/feed
         accel_dist_dict[i] = [accel_dist, steady_state_dist, decel_dist]
-        accel_time_dict[i] = [accel_time,steady_state_time, decel_time]
+        accel_time_dict[i] = [accel_time + mismatch_resync_avg/3,steady_state_time + mismatch_resync_avg/3, decel_time + mismatch_resync_avg/3]
 
         key = i #decel_abs_dist
 
@@ -668,6 +669,7 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
                 if distance >= decel_region:
                     t_current = accel_profile_time[i][2] - time_resync
                     x_current = decel_region
+
                     t = t_current
                     index_start += 1
 
@@ -728,6 +730,7 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
             time_output = t
             time_list.append(time_output)
             time_dict[j] = time_output
+
     return time_dict
 
 time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict,
@@ -743,7 +746,9 @@ times_of_resync = []
 for i in range(len(time_dict)):
     if i in locate_resync:
         times_of_resync.append(time_dict[i])
-print('times_of_resync: ', times_of_resync)
+
+times_of_resync.insert(0,0)
+
 
 if offset < 0:
     offset_time = -offset_time
@@ -752,7 +757,7 @@ if offset < 0:
 
 
 ## creates final dictionaries of commands and times to use
-def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay, offset_time):
+def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay):
     locate_resync = list(resync_trigger_distance_dict.values())
     resync_key_location = {}
 
@@ -775,7 +780,7 @@ def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay, offset_time
                 resync_key_location[dict_count_t] = 'resync'
                 # time_resync = time_dict[i-1]
 
-            time_based_dict_final[dict_count_t] = entry - time_resync - offset_time
+            time_based_dict_final[dict_count_t] = entry - time_resync
             command_list = []
             count_t += 1
             start_count_c = 0
@@ -799,7 +804,7 @@ def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay, offset_time
     # print("time_based_dict_final = ", time_based_dict_final)
     # print("command_dict_final = ", command_dict_final)
     # print("initial_commands = ", initial_commands )
-    print(resync_key_location)
+    #print(resync_key_location)
 
     # for key_locate in resync_key_location:
     #     time_dict_grouped[i] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_key < key <= key_locate])
@@ -814,10 +819,8 @@ def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay, offset_time
     time_TEST2 = {}
     command_TEST2 = {}
     for i in range(len(time_based_dict_final)):
-        add_delay = 0
         if i in resync_key_location:
             resync_time = time_based_dict_final[i-1]
-            add_delay = PING_delay
 
             time_TEST2[count] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_i <= key < i])
             command_TEST2[count] = dict([(key, val) for key, val in command_dict_final.items() if prev_i <= key < i])
@@ -825,7 +828,7 @@ def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay, offset_time
             prev_i = i
             count += 1
 
-        current_time = time_based_dict_final[i] - resync_time - add_delay
+        current_time = time_based_dict_final[i] - resync_time
         time_group[i] = current_time
 
     time_TEST2[count] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_i <= key < len(time_based_dict_final)])
@@ -864,9 +867,9 @@ def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay, offset_time
         command_dict_grouped[count] = dict([(key, val) for key, val in command_dict_final.items() if prev_key < key <= len(time_group)-1])
 
     #return time_based_dict_final, command_dict_final, initial_commands, resync_key_location
-    return time_TEST2, command_TEST2, initial_commands, resync_key_location
+    return time_based_dict_final, command_dict_final, initial_commands, resync_key_location
 
-final_dicts_output = final_dicts(time_dict, resync_trigger_distance_dict, PING_delay, offset_time)
+final_dicts_output = final_dicts(time_dict, resync_trigger_distance_dict, PING_delay)
 time_based_dict_final = final_dicts_output[0]
 command_dict_final = final_dicts_output[1]
 initial_commands = final_dicts_output[2]
@@ -883,66 +886,159 @@ print("\nTotal time to translate distance to time: ", total_time)
 
 # print("set_press: ", set_press)
 # print("initial_toggle: ", initial_toggle)
-# print("time_based_dict_final = ", time_based_dict_final)
+print("time_based_dict_final = ", time_based_dict_final)
 # print("command_dict_final = ", command_dict_final)
 
+print("\nWaiting for ping to start....")
 ###### WAITING FOR PING ##################################
 if __name__ == '__main__':
     ser = openport(port_aerotech)
     ser.reset_input_buffer()
 
-    # while True:
-    #     bytesToRead = ser.inWaiting()
-    #     if bytesToRead > 0:
-    #         print('Received start PING')
-    #         exec(set_press)
-    #         print("Setting the pressures....")
-    #         break
+    while True:
+        bytesToRead = ser.inWaiting()
+        if bytesToRead > 0:
+            print('Received start PING')
+            break
 
     exec(set_press)
     print("Setting the pressures....")
 
     #### Executes Absolute timing ####
-    print("\nWaiting for ping to start....")
+    #print("\nWaiting for ping to start....")
 
-    # time.sleep(3 - PING_delay - start_delay_time)
-    # exec(initial_toggle)
+    time.sleep(3 - PING_delay - start_delay_time)
 
+
+    #count = 0
+    # for j in range(len(command_dict_final)):
+    #     while True:
+    #         bytesToRead = ser.inWaiting()
+    #         if bytesToRead > 0:
+    #             message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+    #             #message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+    #             #message = float(message.strip('\r\n'))/1000 + PING_delay
+    #             print('-------------Received command sync number ', j, ' at location ',  count)
+    #             print('message sent at = ', message)
+    #             start_time = time.time()
+    #             break
+    #
+    #     for i in range(len(command_dict_final[j])):
+    #         if i == 0 and j == 0:
+    #             exec(initial_toggle)
+    #         while True:
+    #             current_time_stamp_execute = time_based_dict_final[j][count]
+    #             real_time = time.time() - start_time
+    #
+    #             if (real_time >= current_time_stamp_execute):
+    #                 exec(command_dict_final[j][count])
+    #                 # print("Desired time: ", current_time_stamp_execute)
+    #                 # print("Actual Time: ", real_time)
+    #                 # print("Commands: ", command_dict_final[j][count])
+    #                 count += 1
+    #                 break
+
+
+    ser.reset_input_buffer()
+    time_stamps_from_aerotech = []
+    python_received_time_stamps = []
+    i = 0
     count = 0
-    for j in range(len(command_dict_final)):
-        while True:
-            bytesToRead = ser.inWaiting()
-            if bytesToRead > 0:
-                message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
-                #message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
-                #message = float(message.strip('\r\n'))/1000 + PING_delay
-                print('-------------Received command sync number ', j, ' at location ',  count)
-                print('message sent at = ', message)
-                start_time = time.time()
-                break
+    add_time = 0
 
-        for i in range(len(command_dict_final[j])):
-            if i == 0 and j == 0:
-                exec(initial_toggle)
-            while True:
-                current_time_stamp = time_based_dict_final[j][count]
-                real_time = time.time() - start_time
+    start_time = time.time()
+    exec(initial_toggle)
+    while (i < len(command_dict_final)):
 
-                if (real_time >= current_time_stamp):
-                    exec(command_dict_final[j][count])
-                    # print("Desired time: ", current_time_stamp)
-                    # print("Actual Time: ", real_time)
-                    # print("Commands: ", command_dict_final[j][count])
-                    count += 1
-                    break
+        real_time = time.time() - start_time
+        bytesToRead = ser.inWaiting()
+        if bytesToRead > 0:
+            python_recieved_time = real_time # to match print time rather than when the aux turn on or off
+            print('-------------Received command sync number ', i)
+            print('python time stamp t = ', python_recieved_time)
+            message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+            message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+            message = float(message.strip('\r\n'))/1000
+            print('aerotech time stamp t = ', message)
+            time_stamps_from_aerotech.append(message)
+            python_received_time_stamps.append(python_recieved_time)
 
+            add_time = (python_recieved_time - PING_delay) - times_of_resync[count]
+            print('calculated resync time stamp t = ', times_of_resync[count])
+            #add_time = (message + PING_delay) - times_of_resync[count]
+            #add_time = message - python_recieved_time + PING_delay
+            #add_time = diff_resync_aero_dict_checkerboard[count]
+            print('add_time = ', add_time)
+            count += 1
 
-    print("DONE!")
+        current_time_stamp_execute = (time_based_dict_final[i] - offset_time) + add_time
+
+        if (real_time >= (current_time_stamp_execute)):
+            exec(command_dict_final[i])
+            #print("Time: ", real_time)
+            #print("\tCommands: ", command_dict_final[0][i])
+
+            i += 1
 
     serialPort1.close()
     serialPort2.close()
+
+    # while True:
+    #     bytesToRead = ser.inWaiting()
+    #     if bytesToRead > 0:
+    #         python_recieved_time = real_time # to match print time rather than when the aux turn on or off
+    #         print('-------------Received command sync number ', i)
+    #         print('final python time stamp t = ', python_recieved_time)
+    #         message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+    #         message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+    #         message = float(message.strip('\r\n'))/1000
+    #         print('final aerotech time stamp t = ', message)
+    #         time_stamps_from_aerotech.append(message)
+    #         python_received_time_stamps.append(python_recieved_time)
+    #         break
+
+    print("DONE!")
+
+
     ser.close()
 
-    print("difference between timer and real time: ", diff_list)
-    print("average diff: ", np.average(diff_list))
-    print("std diff: ", np.std(diff_list))
+    # times_of_resync.insert(0,0)
+    print("time_stamps_from_aerotech= ", time_stamps_from_aerotech)
+    print('python_received_time_stamps = ', python_received_time_stamps)
+    print('times_of_resync = ', times_of_resync)
+
+    # diff_resync_list = []
+    # diff_from_received_list = []
+    # diff_with_PING_delay_list = []
+    # for i in range(len(times_of_resync)):
+    #     diff_resync_aero = message_list[i] - times_of_resync[i]
+    #     diff_from_received = message_list[i] - python_receive_list[i]
+    #     diff_with_PING_delay = (message_list[i] + PING_delay) - python_receive_list[i]
+
+        # diff_resync_list.append(diff_resync_aero)
+        # diff_from_received_list.append(diff_from_received)
+        # diff_with_PING_delay_list.append(diff_with_PING_delay)
+
+    # print('aerotech time stamp - calculated resync =  ', diff_resync_list)
+    # print('aerotech time stamp - python time  ', diff_from_received_list)
+    # print('(aerotech timestamp + PING delay) - python time: ', diff_with_PING_delay_list)
+
+    # print("difference between timer and real time: ", diff_list)
+    # print("average diff: ", np.average(diff_list))
+    # print("std diff: ", np.std(diff_list))
+
+# error_bw_resync_list = []
+# error_bw_python_time_list = []
+# error_bw_python_w_PING_list = []
+# for i in range(1, len(diff_resync_list)):
+#     error_bw_consecutive_resync = diff_resync_list[i] - diff_resync_list[i-1]
+#     error_bw_consecutive_python_time = diff_from_received_list[i] - diff_from_received_list[i-1]
+#     error_bw_consecutive_python_w_PING = diff_with_PING_delay_list[i] - diff_with_PING_delay_list[i-1]
+#     error_bw_resync_list.append(error_bw_consecutive_resync)
+#     error_bw_python_time_list.append(error_bw_consecutive_python_time)
+#     error_bw_python_w_PING_list.append(error_bw_consecutive_python_w_PING)
+#
+#
+# print('error_bw_resync_list:', error_bw_resync_list)
+# print('error_bw_python_time_list',error_bw_python_time_list)
+# print('error_bw_python_w_PING_list',error_bw_python_w_PING_list)
