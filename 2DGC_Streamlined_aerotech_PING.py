@@ -529,7 +529,6 @@ def accel_profile(Sum_distance_dict, resync_trigger_distance_dict):
         #t = round(t, 10)
         return float(t)
 
-    mismatch_resync_avg = 0.008547314489603301
     accel_dist_dict = {}
     accel_time_dict = {}
     accel_dist_abs_dict = {}
@@ -585,10 +584,11 @@ def accel_profile(Sum_distance_dict, resync_trigger_distance_dict):
                 flag_short_move_list.append(decel_time)
                 flag_short_move[key] = flag_short_move_list
 
+        mismatch_resync_avg = 0.0085473144896033018*(i+1)
 
         steady_state_time = steady_state_dist/feed
         accel_dist_dict[i] = [accel_dist, steady_state_dist, decel_dist]
-        accel_time_dict[i] = [accel_time + mismatch_resync_avg/3,steady_state_time + mismatch_resync_avg/3, decel_time + mismatch_resync_avg/3]
+        accel_time_dict[i] = [accel_time + mismatch_resync_avg/2,steady_state_time + mismatch_resync_avg/2, decel_time + mismatch_resync_avg]
 
         key = i #decel_abs_dist
 
