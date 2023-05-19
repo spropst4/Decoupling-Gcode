@@ -31,10 +31,14 @@ img_600_v2 = cv2.imread(image_600_v2, 0)
 img_400_v2 = cv2.imread(image_400_v2, 0)
 img_200_v2 = cv2.imread(image_200_v2, 0)
 
+
+#img_list = [img_1000_v2, img_1000_v3]
+#img_list = [img_800_v2, img_800_v3]
+#img_list = [ img_1000_v2, img_1000_v3, img_800_v2, img_800_v3]
 #img_list = [img_1000_v1, img_1000_v2, img_1000_v3, img_800_v1, img_800_v2]
 img_list = [img_1000_v2,img_800_v2, img_600_v2,  img_400_v2, img_200_v2]
 
-black = 0  # upper range
+black = 50  # upper range
 white = 255 # upper range
 
 # num_white_pix_scalebar = {}
