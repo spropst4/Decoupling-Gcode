@@ -40,7 +40,7 @@ mpl.rcParams['ytick.major.pad']='10'
 
 
 ###############################################################################################################
-def process_image_and_plot(img_list, number_filaments_per_image, scale, colors, smooth):
+def process_image_and_plot(img_list, number_filaments_per_image, scale, colors, smooth, linestyle):
     black = 30  # upper range
     white = 200  # upper range
 
@@ -101,9 +101,9 @@ def process_image_and_plot(img_list, number_filaments_per_image, scale, colors, 
         width_smooth = savgol_filter(width_values_scaled, 200, 3)
 
         if smooth == True:
-            plt.plot(dist_smooth, width_smooth, color=colors[i])
+            plt.plot(dist_smooth, width_smooth, color=colors[i], linestyle = linestyle)
         else:
-            plt.plot(dist_values_scaled, width_values_scaled, color=colors[i])
+            plt.plot(dist_values_scaled, width_values_scaled, color=colors[i], linestyle = linestyle)
 
 def process_image_and_plot_averages(img_list, number_filaments_per_image, scale, color, smooth):
     black = 50  # upper range
@@ -199,6 +199,8 @@ image_1000_all = '230504_SCAN_.58mm_F20_PS1_A1000_2.5scalebar_python_editglare.p
 image_1000_all6_nodefects = '230504_SCAN_.58mm_F20_PS1_A1000_2.5scalebar_python_ColorIndexed_nodefects.png'
 image_1000_all6_defects = '230504_SCAN_.58mm_F20_PS1_A1000_2.5scalebar_python_ColorIndexed.png'
 
+image_1000_all6_defects_notIndexed = '230504_SCAN_.58mm_F20_PS1_A1000_2.5scalebar_python_NOT_ColorIndexed.png'
+
 image_800_nodefects_all = '230504_SCAN_.58mm_F20_PS1_A800_2.5scalebar_python_no_defects.png'
 image_800_all = '230504_SCAN_.58mm_F20_PS1_A800_2.5scalebar_python_editglares.png'
 image_800_all6_nodefects = '230504_SCAN_.58mm_F20_PS1_A800_2.5scalebar_python_ColorIndexed_nodefects.png'
@@ -232,7 +234,9 @@ img_1000_nodefects_all6_list = crop_image(img_1000_nodefects_all6, 6)
 img_1000_all6 = cv2.imread(image_1000_all6_defects, 0)
 img_1000_defects_all6_list = crop_image(img_1000_all6, 6)
 
-
+image_1000_all6_defects_notIndexed = '230504_SCAN_.58mm_F20_PS1_A1000_2.5scalebar_python_NOT_ColorIndexed.png'
+img_1000_all6_not_indexed = cv2.imread(image_1000_all6_defects_notIndexed, 0)
+img_1000_defects_all6_not_indexed_list = crop_image(img_1000_all6_not_indexed, 6)
 
 ################ A = 800 ################
 img_800_nodefects_all = cv2.imread(image_800_nodefects_all, 0)
@@ -288,14 +292,14 @@ img_200_nodefects_all6_list = crop_image(img_200_nodefects_all6, 6)
 img_200_all6 = cv2.imread(image_200_all6_defects, 0)
 img_200_defects_all6_list = crop_image(img_200_all6, 6)
 
-#########################
+############# DEFECTS #############################
 fig1 = plt.figure()
 index_number = 5
 img_list_all = [img_1000_defects_all6_list[index_number], img_800_defects_all6_list[index_number], img_600_defects_all6_list[index_number], img_400_defects_all6_list[index_number], img_200_defects_all6_list[index_number]]
 colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
 smooth = True
 
-fig_all = process_image_and_plot(img_list_all, 1 , scale, colors, smooth)
+#process_image_and_plot(img_list_all, 1, scale, colors, smooth, linestyle)
 plt.xlim(2, 28)
 plt.ylim(0.5,2)
 
@@ -308,10 +312,46 @@ for i in range(len(img_list_all)):
     img_list = img_list_all[i]
     color = colors[i]
     # fig = plt.figure()
-    process_image_and_plot_averages(img_list, 1, scale, color, smooth)
+    #process_image_and_plot_averages(img_list, 1, scale, color, smooth)
 
 plt.xlim(2, 28)
 plt.ylim(0.5,2)
 
+
+fig3 = plt.figure()
+colors = ['k', '#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+
+colors = ['k', '#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+smooth = False
+#process_image_and_plot(img_1000_defects_all6_not_indexed_list, 1, scale, colors, smooth, '-')
+#process_image_and_plot(img_1000_defects_all6_list, 1, scale, colors, smooth, '-')
+
+
+
+#### NO DEFECTS
+fig4 = plt.figure()
+index_number = 5
+img_list_all = [img_1000_nodefects_all6_list[index_number], img_800_nodefects_all6_list[index_number], img_600_nodefects_all6_list[index_number], img_400_nodefects_all6_list[index_number], img_200_nodefects_all6_list[index_number]]
+colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+smooth = True
+
+#process_image_and_plot(img_list_all, 1, scale, colors, smooth, '-')
+plt.xlim(2, 28)
+plt.ylim(0.5,2)
+
+
+#########################
+fig5 = plt.figure()
+img_list_all = [img_1000_nodefects_all6_list,img_800_nodefects_all6_list,img_600_nodefects_all6_list,img_400_nodefects_all6_list,img_200_nodefects_all6_list]
+colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+smooth = True
+for i in range(len(img_list_all)):
+    img_list = img_list_all[i]
+    color = colors[i]
+    fig = plt.figure()
+    process_image_and_plot_averages(img_list, 1, scale, color, smooth)
+
+    plt.xlim(2, 28)
+    plt.ylim(0.5,2)
 
 plt.show()
