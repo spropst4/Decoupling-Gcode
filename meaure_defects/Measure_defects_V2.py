@@ -19,6 +19,7 @@ import matplotlib.colors as mcol
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 mpl.rcParams['font.family'] = 'Arial'
+#mpl.rcParams['figsize'] = (10,5)
 
 SMALL_SIZE = 45
 MEDIUM_SIZE = 45
@@ -31,7 +32,7 @@ mpl.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 mpl.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 mpl.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 mpl.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
-mpl.rc('figure', figsize = (20,15))      # figure/canvas size (inches)
+mpl.rc('figure', figsize = (30,10))      # figure/canvas size (inches)
 
 mpl.rcParams['lines.linewidth'] = 6
 mpl.rcParams['axes.linewidth'] = 2     # set size of plot border
@@ -104,7 +105,6 @@ def process_image_and_plot(img_list, number_filaments_per_image, scale, colors, 
             plt.plot(dist_smooth, width_smooth, color=colors[i], linestyle = linestyle)
         else:
             plt.plot(dist_values_scaled, width_values_scaled, color=colors[i], linestyle = linestyle)
-
 def process_image_and_plot_averages(img_list, number_filaments_per_image, scale, color, smooth):
     black = 50  # upper range
     white = 255  # upper range
@@ -150,12 +150,13 @@ def process_image_and_plot_averages(img_list, number_filaments_per_image, scale,
     upper_list = []
     lower_list = []
     for j in range(len(num_blue_pix_filament_dict[0])):
-        v1 = num_blue_pix_filament_dict[0][j] * scaled_dict[0]
-        v2 = num_blue_pix_filament_dict[1][j] * scaled_dict[1]
-        v3 = num_blue_pix_filament_dict[2][j] * scaled_dict[2]
+        fil_width_list = []
+        for i in range(len(num_blue_pix_filament_dict)):
+            fil_width = num_blue_pix_filament_dict[i][j] * scaled_dict[j]
+            fil_width_list.append(fil_width)
 
-        average = np.average([v1, v2, v3])
-        std = np.std([v1, v2, v3])
+        average = np.average(fil_width_list)
+        std = np.std([fil_width_list])
 
         avg_list.append(average)
         std_list.append(std)
@@ -293,54 +294,54 @@ img_200_all6 = cv2.imread(image_200_all6_defects, 0)
 img_200_defects_all6_list = crop_image(img_200_all6, 6)
 
 ############# DEFECTS #############################
-fig1 = plt.figure()
-index_number = 5
-img_list_all = [img_1000_defects_all6_list[index_number], img_800_defects_all6_list[index_number], img_600_defects_all6_list[index_number], img_400_defects_all6_list[index_number], img_200_defects_all6_list[index_number]]
-colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
-smooth = True
-
-#process_image_and_plot(img_list_all, 1, scale, colors, smooth, linestyle)
-plt.xlim(2, 28)
-plt.ylim(0.5,2)
-
-#########################
-fig2 = plt.figure()
-img_list_all = [img_1000_defects_all6_list,img_800_defects_all6_list,img_600_defects_all6_list,img_400_defects_all6_list,img_200_defects_all6_list]
-colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
-smooth = True
-for i in range(len(img_list_all)):
-    img_list = img_list_all[i]
-    color = colors[i]
-    # fig = plt.figure()
-    #process_image_and_plot_averages(img_list, 1, scale, color, smooth)
-
-plt.xlim(2, 28)
-plt.ylim(0.5,2)
-
-
-fig3 = plt.figure()
-colors = ['k', '#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
-
-colors = ['k', '#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
-smooth = False
-#process_image_and_plot(img_1000_defects_all6_not_indexed_list, 1, scale, colors, smooth, '-')
-#process_image_and_plot(img_1000_defects_all6_list, 1, scale, colors, smooth, '-')
-
-
-
-#### NO DEFECTS
-fig4 = plt.figure()
-index_number = 5
-img_list_all = [img_1000_nodefects_all6_list[index_number], img_800_nodefects_all6_list[index_number], img_600_nodefects_all6_list[index_number], img_400_nodefects_all6_list[index_number], img_200_nodefects_all6_list[index_number]]
-colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
-smooth = True
-
-#process_image_and_plot(img_list_all, 1, scale, colors, smooth, '-')
-plt.xlim(2, 28)
-plt.ylim(0.5,2)
-
-
-#########################
+# fig1 = plt.figure()
+# index_number = 5
+# img_list_all = [img_1000_defects_all6_list[index_number], img_800_defects_all6_list[index_number], img_600_defects_all6_list[index_number], img_400_defects_all6_list[index_number], img_200_defects_all6_list[index_number]]
+# colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+# smooth = True
+#
+# #process_image_and_plot(img_list_all, 1, scale, colors, smooth, '-')
+# plt.xlim(2, 28)
+# plt.ylim(0.5,2)
+#
+# #########################
+# fig2 = plt.figure()
+# img_list_all = [img_1000_defects_all6_list,img_800_defects_all6_list,img_600_defects_all6_list,img_400_defects_all6_list,img_200_defects_all6_list]
+# colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+# smooth = True
+# for i in range(len(img_list_all)):
+#     img_list = img_list_all[i]
+#     color = colors[i]
+#     fig = plt.figure()
+#     process_image_and_plot_averages(img_list, 1, scale, color, smooth)
+#
+#     plt.xlim(2, 28)
+#     plt.ylim(0.5,2)
+#
+#
+# fig3 = plt.figure()
+# colors = ['k', '#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+#
+# # colors = ['k', '#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+# # smooth = False
+# # process_image_and_plot(img_1000_defects_all6_not_indexed_list, 1, scale, colors, smooth, '-')
+# # process_image_and_plot(img_1000_defects_all6_list, 1, scale, colors, smooth, '-')
+#
+#
+#
+# #### NO DEFECTS
+# fig4 = plt.figure()
+# index_number = 5
+# img_list_all = [img_1000_nodefects_all6_list[index_number], img_800_nodefects_all6_list[index_number], img_600_nodefects_all6_list[index_number], img_400_nodefects_all6_list[index_number], img_200_nodefects_all6_list[index_number]]
+# colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+# smooth = True
+#
+# #process_image_and_plot(img_list_all, 1, scale, colors, smooth, '-')
+# plt.xlim(2, 28)
+# plt.ylim(0.5,2)
+#
+#
+# #########################
 fig5 = plt.figure()
 img_list_all = [img_1000_nodefects_all6_list,img_800_nodefects_all6_list,img_600_nodefects_all6_list,img_400_nodefects_all6_list,img_200_nodefects_all6_list]
 colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
@@ -349,9 +350,221 @@ for i in range(len(img_list_all)):
     img_list = img_list_all[i]
     color = colors[i]
     fig = plt.figure()
-    process_image_and_plot_averages(img_list, 1, scale, color, smooth)
+    #process_image_and_plot_averages(img_list, 1, scale, color, smooth)
 
     plt.xlim(2, 28)
     plt.ylim(0.5,2)
+
+#plt.show()
+
+
+##################################### AVERAGE AREA DEVIATION vs ACCEL ###############
+# def process_image_avgArea(img_list, number_filaments_per_image, scale):
+#     black = 50  # upper range
+#     white = 255  # upper range
+#
+#     num_white_pix_scalebar_dict = {}
+#     num_blue_pix_filament_dict = {}
+#     for j in range(len(img_list)):
+#         pix_scalebar = {}
+#         num_blue_pix_filament = {}
+#
+#         current_img = img_list[j]
+#         for i in range(len(current_img)):
+#             num_pix_total = len(current_img[i])
+#             num_white_pix_scalebar = np.sum(current_img[3] == white)
+#
+#             num_white_pix = np.sum(current_img[i] >= white)
+#             num_black_pix = np.sum(current_img[i] <= black)
+#             num_blue_pix = num_pix_total - (num_black_pix + num_white_pix)
+#
+#             pix_scalebar[i] = num_white_pix_scalebar / number_filaments_per_image
+#
+#
+#             num_blue_pix_filament[i] = num_blue_pix / number_filaments_per_image
+#
+#         num_white_pix_scalebar_dict[j] = pix_scalebar
+#         num_blue_pix_filament_dict[j] = num_blue_pix_filament
+#
+#     scale_bar_average_dict = {}
+#     scale_bar_std_dict = {}
+#     scaled_dict = {}
+#     for i in range(len(num_white_pix_scalebar_dict)):
+#         current_img = num_white_pix_scalebar_dict[i]
+#         width_values = list(current_img.values())
+#         scale_bar_width = np.average(width_values)
+#         scale_bar_std = np.std(width_values)
+#         scale_bar_average_dict[i] = scale_bar_width
+#         scale_bar_std_dict[i] = scale_bar_std
+#         scaled_dict[i] = scale / scale_bar_width
+#     #print("scaled_dict = ", scaled_dict)
+#
+#     area_list = []
+#     for i in range(len(num_blue_pix_filament_dict)):
+#         current_fil = num_blue_pix_filament_dict[i]
+#         area = 0
+#         for j in range(len(current_fil)):
+#             area += num_blue_pix_filament_dict[i][j] * scaled_dict[0] * scale
+#
+#         area_list.append(area/10590.725620567771)
+#
+#     average_area = np.average([area_list])
+#     std_area = np.std([area_list])
+#
+#     return average_area, std_area
+#
+# img_list_all = [img_1000_defects_all6_list[1:],img_800_defects_all6_list[1:],img_600_defects_all6_list[1:],img_400_defects_all6_list[1:],img_200_defects_all6_list[1:]]
+# avg_area_list = []
+# std_area_list = []
+#
+# for i in range(len(img_list_all)):
+#     img_list = img_list_all[i]
+#     output = process_image_avgArea(img_list, 1, scale)
+#     avg_area = output[0]
+#     std_area = output[1]
+#
+#     avg_area_list.append(avg_area)
+#     std_area_list.append(std_area)
+#
+# print(avg_area_list)
+# print(std_area_list)
+# print(np.average(avg_area_list))
+# accel_list = [1000, 800, 600, 400, 200]
+# colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+#
+# plt.plot(accel_list, avg_area_list, color = 'k', linewidth = 3)
+# for i in range(len(avg_area_list)):
+#     plt.errorbar(accel_list[i], avg_area_list[i], yerr = std_area_list[i], color = 'gray', linewidth = 2, capsize = 2)
+#     plt.plot(accel_list[i], avg_area_list[i], color = colors[i], marker='o', markersize=7)
+#
+#
+# img_list_all = [img_1000_nodefects_all6_list[1:],img_800_nodefects_all6_list[1:],img_600_nodefects_all6_list[1:],img_400_nodefects_all6_list[1:],img_200_nodefects_all6_list[1:]]
+# avg_area_list = []
+# std_area_list = []
+#
+# for i in range(len(img_list_all)):
+#     img_list = img_list_all[i]
+#     output = process_image_avgArea(img_list, 1, scale)
+#     avg_area = output[0]
+#     std_area = output[1]
+#
+#     avg_area_list.append(avg_area)
+#     std_area_list.append(std_area)
+#
+# print(avg_area_list)
+# print(std_area_list)
+# print(np.average(avg_area_list))
+#
+# plt.plot(accel_list, avg_area_list, color = 'k', linewidth = 3, linestyle = '--')
+# for i in range(len(avg_area_list)):
+#     plt.errorbar(accel_list[i], avg_area_list[i], yerr = std_area_list[i], color = 'gray', linewidth = 2, capsize = 2)
+#     plt.plot(accel_list[i], avg_area_list[i], color = colors[i], marker='s', markersize=7)
+#
+# plt.xlabel("Acceleration")
+# plt.ylabel("Relative Area")
+
+##################################### AVERAGE MAX PEAK vs ACCEL ###############
+def process_image_avgMAX(img_list, number_filaments_per_image, scale):
+    black = 50  # upper range
+    white = 255  # upper range
+
+    num_white_pix_scalebar_dict = {}
+    num_blue_pix_filament_dict = {}
+    for j in range(len(img_list)):
+        pix_scalebar = {}
+        num_blue_pix_filament = {}
+
+        current_img = img_list[j]
+        for i in range(len(current_img)):
+            num_pix_total = len(current_img[i])
+            num_white_pix_scalebar = np.sum(current_img[3] == white)
+
+            num_white_pix = np.sum(current_img[i] >= white)
+            num_black_pix = np.sum(current_img[i] <= black)
+            num_blue_pix = num_pix_total - (num_black_pix + num_white_pix)
+
+            pix_scalebar[i] = num_white_pix_scalebar / number_filaments_per_image
+
+
+            num_blue_pix_filament[i] = num_blue_pix / number_filaments_per_image
+
+        num_white_pix_scalebar_dict[j] = pix_scalebar
+        num_blue_pix_filament_dict[j] = num_blue_pix_filament
+
+    scale_bar_average_dict = {}
+    scale_bar_std_dict = {}
+    scaled_dict = {}
+    for i in range(len(num_white_pix_scalebar_dict)):
+        current_img = num_white_pix_scalebar_dict[i]
+        width_values = list(current_img.values())
+        scale_bar_width = np.average(width_values)
+        scale_bar_std = np.std(width_values)
+        scale_bar_average_dict[i] = scale_bar_width
+        scale_bar_std_dict[i] = scale_bar_std
+        scaled_dict[i] = scale / scale_bar_width
+    #print("scaled_dict = ", scaled_dict)
+
+    import heapq
+    max3_list = []
+    for i in range(len(num_blue_pix_filament_dict)):
+        current_fil = num_blue_pix_filament_dict[i]
+        current_fil_list = list(current_fil.values())
+        max3 = heapq.nlargest(3, current_fil_list)
+        max3_scaled = [elem * (scaled_dict[i]) for elem in max3]
+
+        max3_list.append(max3_scaled)
+
+    average_max = np.average(max3_list)
+    std_max = np.std(max3_list)
+
+    return average_max, std_max
+img_list_all = [img_1000_defects_all6_list[1:],img_800_defects_all6_list[1:],img_600_defects_all6_list[1:],img_400_defects_all6_list[1:],img_200_defects_all6_list[1:]]
+
+avg_max_list = []
+std_max_list = []
+for i in range(len(img_list_all)):
+    img_list = img_list_all[i]
+    output = process_image_avgMAX(img_list, 1, scale)
+    avg_max = output[0]
+    std_max = output[1]
+
+    avg_max_list.append(avg_max)
+    std_max_list.append(std_max)
+
+print(avg_max_list)
+print(std_max_list)
+accel_list = [1000, 800, 600, 400, 200]
+colors = ['#2a4c8b', '#1e6fa1', '#0a95a6', '#59b97c', '#b9d14b']
+
+fig = plt.figure()
+plt.plot(accel_list, avg_max_list, color = 'k', linewidth = 3)
+for i in range(len(avg_max_list)):
+    plt.errorbar(accel_list[i], avg_max_list[i], yerr = std_max_list[i], color = 'gray', linewidth = 2, capsize = 2)
+    plt.plot(accel_list[i], avg_max_list[i], color = colors[i], marker='o', markersize=7)
+
+
+img_list_all = [img_1000_nodefects_all6_list[1:],img_800_nodefects_all6_list[1:],img_600_nodefects_all6_list[1:],img_400_nodefects_all6_list[1:],img_200_nodefects_all6_list[1:]]
+
+avg_max_list = []
+std_max_list = []
+for i in range(len(img_list_all)):
+    img_list = img_list_all[i]
+    output = process_image_avgMAX(img_list, 1, scale)
+    avg_max = output[0]
+    std_max = output[1]
+
+    avg_max_list.append(avg_max)
+    std_max_list.append(std_max)
+
+print(avg_max_list)
+print(std_max_list)
+
+plt.plot(accel_list, avg_max_list, color = 'k', linewidth = 3, linestyle = '--')
+for i in range(len(avg_max_list)):
+    plt.errorbar(accel_list[i], avg_max_list[i], yerr = std_max_list[i], color = 'gray', linewidth = 2, capsize = 2)
+    plt.plot(accel_list[i], avg_max_list[i], color = colors[i], marker = 's',  markersize=7)
+
+plt.xlabel("Acceleration")
+plt.ylabel("Defect deviation from ideal (mm)")
 
 plt.show()
