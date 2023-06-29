@@ -18,42 +18,46 @@ now = datetime.now() # datetime object containing current date and time
 current_date = date.today()
 dt_string = now.strftime("%d/%m/%Y")     # dd/mm/YY H:M:S
 ############################ INPUTS #############################################
-feed = 20 # feedrate mm/s
+feed = 10 # feedrate mm/s
 accel = 1000#700 # mm/s^2
 decel = -1000#-700 # mm/s^2
 
-offset = 3.5 #use a negative number to increase length of time/material being on (units in mm)
-offset_initial = 6
+offset = 0#3.75 #2.5 #use a negative number to increase length of time/material being on (units in mm)
+offset_initial = 0 #5 #3.5
 start_delay = 0 #(units in mm)
-testing = 'PING resync ON every direction change; NO Time adjust; 3 x 10 checkerboard; 37 psi y = .9 mm; x = 10 mm (25 x 150 mm total); offsets = 3.5; 5 mm tail; resync_constant = 0.0.009155309259154134'
+testing = 'No resync every direction change; Time adjust; 3x 5 checkerboard; 29 psi y = 1 mm; x = 10 mm ; offsets = 3.75; offset_initial = 5 mm; 5 mm tail'
 
-defining_feature = "5x10_09mm_ON_F" +str(feed) +'_2' # no spaces. Used in resync data collection. It will attach to variable name that is exported
+defining_feature = "3x5_1mm_NoResync_every1_F" +str(feed) +'_2' # no spaces. Used in resync data collection. It will attach to variable name that is exported
 
-gcode_txt_imported = "1DGC_Generate_Checkerboard_SwitchingNozzle_gcode.txt" #"1DGC_Generate_Checkerboard_M1.txt"
-final_gcode_txt_export = "1DGC_Generate_Checkerboard_SwitchingNozzle_aerotech_PING.txt"
+gcode_txt_imported = "1DGC_Generate_Gradient_M1_gcode.txt" #"1DGC_Generate_Checkerboard_SwitchingNozzle_gcode.txt" #"1DGC_Generate_Checkerboard_M1.txt"
+final_gcode_txt_export = "1DGC_Generate_Gradient_M1_aerotech.txt"
 
-number_of_ports_used = 2 # (aka number of materials used)
+number_of_ports_used = 1 # (aka number of materials used)
 
-resync_type = 'direction-based' # OPTIONS: 'command-based', 'direction-based', False
-resync_test_time_adjust = True
+resync_type = False #'direction-based' # OPTIONS: 'command-based', 'direction-based', False
+
+resync_test_time_adjust = False
 resync_number = 1 # number of directions changes between resyncing
+
 PING_delay = 0.011305268287658692 # from AEROTECH_PING_data.txt
 
 mismatch_resync = False  # this doesn't work yet... do you want to have the average mismatch between resync and pythong between consecutive commands added?
 mismatch_resync_constant = 0.00916 #0.0085473144896033018 #0.009179368372316697 # average taken from 0.2, 0.4, 0.6, 0.8, 1, 2, 10 mm. If mismatch_reysnc = true, added to accel profile.
 
 Z_var = "C"
-z_height = 1.1
+z_height = 0.58
 z_o= -150 + z_height
 
 home = False  #do you want to home it? (True = yes)
 
 # Open the ports for the pressure box
 press_com1 = 5 # core
-press_com2 = 4 # shell
+press_com2 = 6 # shell
+press_com3 = 4
 
 serialPort1 = openport(press_com1)
 serialPort2 = openport(press_com2)
+serialPort3 = openport(press_com3)
 
 # Open the port for the python-hyrel connection
 port_aerotech = 1 #port named in python code to connect to aerotech
@@ -465,6 +469,8 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
 
             if i < len(Sum_coord_dict) - 1 and i in resync_trigger_distance_dict:
                 f.write(resync_PING)
+
+        f.write(resync_PING)
         f.write('\n\rG0 ' + str(Z_var) + '30')
         f.write('\n\rFILECLOSE $hFile\nM02')
     print("\n", final_gcode_txt_export, "has been created\n\r")
@@ -745,15 +751,11 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
 
     return time_dict
 
-time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict,
-                          resync_trigger_distance_dict, flag_trigger, PING_delay)
+time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict, resync_trigger_distance_dict, flag_trigger, PING_delay)
 
-start_delay_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [start_delay],
-                                       resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
-offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)],
-                                  resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
-offset_time_initial = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset_initial)],
-                                  resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
+start_delay_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [start_delay],resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
+# offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)],resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
+# offset_time_initial = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset_initial)], resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
 
 locate_resync = list(resync_trigger_distance_dict.values())
 times_of_resync = []
@@ -762,15 +764,16 @@ for i in range(len(time_dict)):
     if i in locate_resync:
         times_of_resync.append(time_dict[i])
 
-times_of_resync.insert(0,0)
-print(times_of_resync)
 
-if offset < 0:
-    offset_time = -offset_time
-if offset_initial < 0:
-    offset_time_initial = -offset_time_initial
 
-#offset_time = offset/feed
+
+# if offset < 0:
+#     offset_time = -offset_time
+# if offset_initial < 0:
+#     offset_time_initial = -offset_time_initial
+
+offset_time = offset/feed
+offset_time_initial = offset_initial/feed
 
 
 ## creates final dictionaries of commands and times to use
@@ -836,7 +839,7 @@ def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay):
     time_TEST2 = {}
     command_TEST2 = {}
     for i in range(len(time_based_dict_final)):
-        if i in resync_key_location:
+        if i in resync_key_location and i != 0:
             resync_time = time_based_dict_final[i-1]
 
             time_TEST2[count] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_i <= key < i])
@@ -896,6 +899,9 @@ set_press = '[%s]' % ', '.join(map(str,initial_commands[:number_of_ports_used]))
 initial_toggle ='[%s]' % ', '.join(map(str, initial_commands[number_of_ports_used:]))
 final_dict_end = time.time()
 
+times_of_resync.insert(0,0)
+times_of_resync.append(time_based_dict_final[len(time_based_dict_final)-1])
+print(times_of_resync)
 
 end_time = time.time()
 total_time = end_time - start_time
@@ -936,11 +942,12 @@ if __name__ == '__main__':
     exec(initial_toggle)
     while (i < len(command_dict_final)):
 
+
         real_time = time.time() - start_time
         bytesToRead = ser.inWaiting()
         if bytesToRead > 0:
             python_recieved_time = real_time # to match print time rather than when the aux turn on or off
-            print('-------------Received command sync number ', i)
+            print('-------------Received command sync number ', count)
             print('python time stamp t = ', python_recieved_time)
             message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
             message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
@@ -973,76 +980,86 @@ if __name__ == '__main__':
 
             i += 1
 
+    # ser.reset_input_buffer()
+    # bytesToRead = ser.inWaiting()
+    # if bytesToRead > 0:
+    #     python_recieved_time = time.time() - start_time  # to match print time rather than when the aux turn on or off
+    #     print('---------END----Received command sync number ')
+    #     print('python time stamp t = ', python_recieved_time)
+    #     message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+    #     # message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+    #     # message = float(message.strip('\r\n'))/1000
+    #     print('aerotech time stamp t = ', message)
+    #     time_stamps_from_aerotech.append(message)
+    #     python_received_time_stamps.append(python_recieved_time)
+
     serialPort1.close()
     serialPort2.close()
 
     print("DONE!")
 
 
-    ser.close()
 
-
-
-### Data collections for resyncing
-diff_python_aero_dict = {}
-diff_resync_aero_dict = {}
-diff_resync_python_dict = {}
-time_stamps_from_aerotech_dict = {}
-python_received_time_stamps_dict = {}
-times_of_resync_dict = {}
-for i in range(len(time_stamps_from_aerotech)):
-    time_stamps_from_aerotech_dict[i] = time_stamps_from_aerotech[i]
-    python_received_time_stamps_dict[i] = python_received_time_stamps[i] - PING_delay
-    times_of_resync_dict[i] = times_of_resync[i]
-
-    diff_python_aero = time_stamps_from_aerotech_dict[i] - python_received_time_stamps_dict[i]
-    diff_resync_aero = time_stamps_from_aerotech_dict[i] - times_of_resync_dict[i]
-    diff_resync_python = (python_received_time_stamps_dict[i]) - times_of_resync_dict[i]
-
-    diff_python_aero_dict[i] = diff_python_aero
-    diff_resync_aero_dict[i] = diff_resync_aero
-    diff_resync_python_dict[i] = diff_resync_python
-
-
-incr_diff_python_aero_dict = {}
-incr_diff_resync_aero_dict = {}
-incr_diff_resync_python_dict = {}
-
-for i in range(1, len(diff_python_aero_dict)):
-    incr_diff_python_aero = diff_python_aero_dict[i] - diff_python_aero_dict[i-1]
-    incr_diff_resync_aero = diff_resync_aero_dict[i] - diff_resync_aero_dict[i-1]
-    incr_diff_resync_python = diff_resync_python_dict[i] - diff_resync_python_dict[i-1]
-
-    incr_diff_python_aero_dict[i] = incr_diff_python_aero
-    incr_diff_resync_aero_dict[i] = incr_diff_resync_aero
-    incr_diff_resync_python_dict[i] = incr_diff_resync_python #- PING_delay #subtract ping delay = 0.011305268287658692 from python time
-
-with open(now.strftime("%Y%m%d")+'_resync_data_v2.txt', 'a') as f:
-    # f.write('\n# aerotech_time_stamps_ = time PING sent according to aerotech')
-    # f.write('\n# python_time_stamps_ = time python received PING')
-    # f.write('\n# times_of_resync_ = calculated time python was supposed to receive PING')
-    # f.write('\n# diff_python_aero_diff = aerotech - python')
-    # f.write('\n# diff_resync_aero_ = aerotech - resync ')
-    # f.write('\n# diff_resync_python_ = python - resync')
-    # f.write('\n# incr_dif_ = diff between consecutive numbers')
-    #
-    # f.write('\n# Date: ' + dt_string)
-    f.write('\n# F = ' + str(feed) + '; A = ' + str(accel) + ';PING_delay = ' + str(PING_delay))
-    f.write('\n# ' + testing)
-    f.write('\n# defining feature flag: ' + defining_feature)
-
-    f.write("\n\naerotech_time_stamps_" + defining_feature + " = " + str(time_stamps_from_aerotech_dict))
-    f.write('\npython_time_stamps_' + defining_feature + " = " + str(python_received_time_stamps_dict))
-    f.write('\ntimes_of_resync_' + defining_feature + " = " + str(times_of_resync_dict))
-
-    f.write('\n\nadd_time_list_'+ defining_feature + " = " + str(add_time_list))
-
-    f.write("\n\ndiff_python_aero_" + defining_feature + " = " + str(diff_python_aero_dict))
-    f.write('\ndiff_resync_aero_' + defining_feature + " = " + str(diff_resync_aero_dict))
-    f.write('\ndiff_resync_python_' + defining_feature + " = " + str(diff_resync_python_dict))
-
-    f.write("\n\nincr_diff_python_aero_" + defining_feature + " = " + str(incr_diff_python_aero_dict))
-    f.write('\nincr_diff_resync_aero_' + defining_feature + " = " + str(incr_diff_resync_aero_dict))
-    f.write('\nincr_diff_resync_python_' + defining_feature + " = " + str(incr_diff_resync_python_dict))
-
-    f.write('\n-----------------------------------------\n')
+# ### Data collections for resyncing
+# diff_python_aero_dict = {}
+# diff_resync_aero_dict = {}
+# diff_resync_python_dict = {}
+# time_stamps_from_aerotech_dict = {}
+# python_received_time_stamps_dict = {}
+# times_of_resync_dict = {}
+# for i in range(len(time_stamps_from_aerotech)):
+#     time_stamps_from_aerotech_dict[i] = time_stamps_from_aerotech[i]
+#     python_received_time_stamps_dict[i] = python_received_time_stamps[i] - PING_delay
+#     times_of_resync_dict[i] = times_of_resync[i]
+#
+#     diff_python_aero = time_stamps_from_aerotech_dict[i] - python_received_time_stamps_dict[i]
+#     diff_resync_aero = time_stamps_from_aerotech_dict[i] - times_of_resync_dict[i]
+#     diff_resync_python = (python_received_time_stamps_dict[i]) - times_of_resync_dict[i]
+#
+#     diff_python_aero_dict[i] = diff_python_aero
+#     diff_resync_aero_dict[i] = diff_resync_aero
+#     diff_resync_python_dict[i] = diff_resync_python
+#
+#
+# incr_diff_python_aero_dict = {}
+# incr_diff_resync_aero_dict = {}
+# incr_diff_resync_python_dict = {}
+#
+# for i in range(1, len(diff_python_aero_dict)):
+#     incr_diff_python_aero = diff_python_aero_dict[i] - diff_python_aero_dict[i-1]
+#     incr_diff_resync_aero = diff_resync_aero_dict[i] - diff_resync_aero_dict[i-1]
+#     incr_diff_resync_python = diff_resync_python_dict[i] - diff_resync_python_dict[i-1]
+#
+#     incr_diff_python_aero_dict[i] = incr_diff_python_aero
+#     incr_diff_resync_aero_dict[i] = incr_diff_resync_aero
+#     incr_diff_resync_python_dict[i] = incr_diff_resync_python #- PING_delay #subtract ping delay = 0.011305268287658692 from python time
+#
+# with open(now.strftime("%Y%m%d")+'_resync_data.txt', 'a') as f:
+#     # f.write('\n# aerotech_time_stamps_ = time PING sent according to aerotech')
+#     # f.write('\n# python_time_stamps_ = time python received PING')
+#     # f.write('\n# times_of_resync_ = calculated time python was supposed to receive PING')
+#     # f.write('\n# diff_python_aero_diff = aerotech - python')
+#     # f.write('\n# diff_resync_aero_ = aerotech - resync ')
+#     # f.write('\n# diff_resync_python_ = python - resync')
+#     # f.write('\n# incr_dif_ = diff between consecutive numbers')
+#     #
+#     # f.write('\n# Date: ' + dt_string)
+#     f.write('\n# F = ' + str(feed) + '; A = ' + str(accel) + ';PING_delay = ' + str(PING_delay))
+#     f.write('\n# ' + testing)
+#     f.write('\n# defining feature flag: ' + defining_feature)
+#
+#     f.write("\n\naerotech_time_stamps_" + defining_feature + " = " + str(time_stamps_from_aerotech_dict))
+#     f.write('\npython_time_stamps_' + defining_feature + " = " + str(python_received_time_stamps_dict))
+#     f.write('\ntimes_of_resync_' + defining_feature + " = " + str(times_of_resync_dict))
+#
+#     f.write('\n\nadd_time_list_'+ defining_feature + " = " + str(add_time_list))
+#
+#     f.write("\n\ndiff_python_aero_" + defining_feature + " = " + str(diff_python_aero_dict))
+#     f.write('\ndiff_resync_aero_' + defining_feature + " = " + str(diff_resync_aero_dict))
+#     f.write('\ndiff_resync_python_' + defining_feature + " = " + str(diff_resync_python_dict))
+#
+#     f.write("\n\nincr_diff_python_aero_" + defining_feature + " = " + str(incr_diff_python_aero_dict))
+#     f.write('\nincr_diff_resync_aero_' + defining_feature + " = " + str(incr_diff_resync_aero_dict))
+#     f.write('\nincr_diff_resync_python_' + defining_feature + " = " + str(incr_diff_resync_python_dict))
+#
+#     f.write('\n-----------------------------------------\n')
