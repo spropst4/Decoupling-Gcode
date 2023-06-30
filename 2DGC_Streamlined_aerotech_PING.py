@@ -172,7 +172,10 @@ def parse_gcode(gcode_list):
                         # direction_dict[count].append(elem)
 
                 if "X" in direction_check and "Y" in direction_check and "Z" not in direction_check:
-                    slope = Y_dist_dict[count]/X_dist_dict[count]
+                    slope = False
+                    if X_dist_dict[count] != 0:
+                        slope = Y_dist_dict[count]/X_dist_dict[count]
+                        slope = True
                 else:
                     slope = False
 
@@ -467,7 +470,7 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
 
             f.write("\n\r" + coordinates)
 
-            if i < len(Sum_coord_dict) - 1 and i in resync_trigger_distance_dict:
+            if if i!=0 and i < len(Sum_coord_dict) - 1 and i in resync_trigger_distance_dict:
                 f.write(resync_PING)
 
         f.write(resync_PING)
@@ -765,15 +768,10 @@ for i in range(len(time_dict)):
         times_of_resync.append(time_dict[i])
 
 
-
-
-# if offset < 0:
-#     offset_time = -offset_time
-# if offset_initial < 0:
-#     offset_time_initial = -offset_time_initial
-
-offset_time = offset/feed
-offset_time_initial = offset_initial/feed
+if offset < 0:
+    offset_time = -offset_time
+if offset_initial < 0:
+    offset_time_initial = -offset_time_initial
 
 
 ## creates final dictionaries of commands and times to use
@@ -899,8 +897,9 @@ set_press = '[%s]' % ', '.join(map(str,initial_commands[:number_of_ports_used]))
 initial_toggle ='[%s]' % ', '.join(map(str, initial_commands[number_of_ports_used:]))
 final_dict_end = time.time()
 
-times_of_resync.insert(0,0)
-times_of_resync.append(time_based_dict_final[len(time_based_dict_final)-1])
+#times_of_resync.insert(0,0)
+times_of_resync = times_of_resync[1:]
+#times_of_resync.append(time_based_dict_final[len(time_based_dict_final)-1])
 print(times_of_resync)
 
 end_time = time.time()
