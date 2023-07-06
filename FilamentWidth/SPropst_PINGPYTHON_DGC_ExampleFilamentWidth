@@ -1,0 +1,48 @@
+DVAR $hFile
+
+DVAR $timer
+
+G71 
+G76 
+G91	;G90 = absolute, G91 = relative 
+G68 
+RAMP TYPE LINEAR X Y 
+RAMP RATE 1000
+
+VELOCITY OFF
+
+ENABLE X Y D
+;HOME X Y D
+
+G90
+G0 X0 Y0 D0
+G91
+
+;Begin Motion
+G0 X150 Y50 
+G0 D-149.95
+G1 F15
+
+
+
+FILECLOSE
+$hFile = FILEOPEN "COM2", 2
+COMMINIT $hFile, "baud=115200 parity=N data=8 stop=1"
+COMMSETTIMEOUT $hFile, -1, -1, 1000
+
+FILEWRITE $hFile, "start"
+G4 P3
+
+
+TIMER 0 CLEAR
+
+G1 Y10
+
+G1 X60 D1.75
+
+DWELL 0.5
+
+G0 D30
+
+FILECLOSE $hFile
+M02
