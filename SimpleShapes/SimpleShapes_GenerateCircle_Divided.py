@@ -10,11 +10,15 @@ def generateCircle(num_sections_per_quarter, r_start, r_final,r_inner_solid, fil
 
         theta_between_moves = (np.pi / 2) / num_sections_per_quarter
         r = r_start
-        color_start = toggle_ON[0]
-        color_flag_ON = 0
+        color_start = toggle_ON[1]
 
         f.write(color_start)
         theta_for_ij = 0
+        f.write('\n\rG1 X10')
+        f.write(toggle_ON[0])
+        f.write(toggle_OFF[1])
+        color_flag_ON = 0
+        f.write('\n\rG1 X10')
 
         while r < r_inner_solid:
             i = round(-r * np.cos(theta_for_ij), 10)
@@ -161,15 +165,15 @@ def togglepress():
     return toggle
 
 num_sections_per_quarter = 5
-export_gcode_txt = '1DGC_GenerateCircle_divided_'+str(num_sections_per_quarter*4)+'_gcode.txt'
+export_gcode_txt = 'SimpleShapes_GenerateCircle_divided_'+str(num_sections_per_quarter*4)+'_gcode.txt'
 
 
-r_start = 0.5
+r_start = 12
 r_final = 15
 r_inner_solid = 1
 
 filament_width = 1
-pressure = [24, 24]
+pressure = [26, 26]
 
 ###############################################################################################################
 com = ["serialPort1", "serialPort2"]
@@ -191,4 +195,3 @@ toggle_OFF = [toggleOFF_1, toggleOFF_2]
 ###############################################################################################################
 generateCircle(num_sections_per_quarter, r_start, r_final,r_inner_solid, filament_width, export_gcode_txt, setpress_list, toggle_ON,
                toggle_OFF)
-
