@@ -1,0 +1,159 @@
+
+'--- Section 1
+{gap}
+G1 X0 {offset}
+G1 X5 -{offset}
+
+'Material 2 ON
+'Material 1 OFF
+G0 X5
+
+'Material 1 ON
+'Material 2 OFF
+G1 X5
+G1 X5 -{offset}
+
+
+'Material 2 ON
+'Material 1 OFF
+G0 X5
+
+
+'Material 1 ON
+'Material 2 OFF
+G1 X5 +{offset}
+
+'--- Section 2
+{gap}
+G1 X-2.5 +{offset_x} Y5 -{offset_y}
+
+
+'Material 2 ON
+'Material 1 OFF
+G1 X0 -{offset_x} Y0 {offset_y}
+
+G0 X-2.5 +{offset_x} Y-5 +{offset_y}
+
+'Material 1 ON
+'Material 2 OFF
+G0 X0 -{offset_x} Y0 -{offset_y}
+
+G1 X-2.5 Y5
+G1 X-2.5 +{offset_x} Y-5 +{offset_y}
+
+
+'Material 2 ON
+'Material 1 OFF
+G1 X0 -{offset_x} Y0 -{offset_y}
+
+
+G0 X-2.5 +{offset_x} Y5 -{offset_y}
+
+'Material 1 ON
+'Material 2 OFF
+G0 X0 -{offset_x} Y0 {offset_y}
+
+G1 X-2.5 Y-5
+G1 X-2.5 +{offset_x} Y5 -{offset_y}
+
+'Material 2 ON
+'Material 1 OFF
+G1 X0 -{offset_x} Y0 {offset_y}
+
+G0 X-2.5 +{offset_x} Y-5 +{offset_y}
+
+'Material 1 ON
+'Material 2 OFF
+G0 X0 -{offset_x} Y0 -{offset_y}
+
+G1 X-2.5 Y5
+G1 X-2.5 +{offset_x} Y-5 +{offset_y}
+
+'Material 2 ON
+'Material 1 OFF
+G1 X0 -{offset_x} Y0 -{offset_y}
+
+G0 X-2.5 +{offset_x} Y5 -{offset_y}
+
+'Material 1 ON
+'Material 2 OFF
+G0 X0 -{offset_x} Y0 {offset_y}
+G1 X-2.5 Y-5
+
+'--- Section 3
+{gap}
+G0 Y5
+G0 X2.5
+
+G1 X5
+G1 X5 -{offset}
+
+'Material 2 ON
+'Material 1 OFF
+G0 X5
+
+'Material 1 ON
+'Material 2 OFF
+G1 X5 +{offset}
+G1 X5
+
+'--- Section 4
+
+G0 X2.5
+G0 Y5
+{gap}
+
+G1 X-2.5 +{offset_x} Y-5 +{offset_y}
+
+'Material 2 ON
+'Material 1 OFF
+G1 X0 -{offset_x} Y0 -{offset_y}
+
+G0 X-2.5 +{offset_x} Y5 -{offset_y}
+
+'Material 1 ON
+'Material 2 OFF
+G0 X0 -{offset_x} Y0 {offset_y}
+
+G1 X-2.5 Y-5
+G1 X-2.5 +{offset_x} Y5 -{offset_y}
+
+
+'Material 2 ON
+'Material 1 OFF
+G1 X0 -{offset_x} Y0 {offset_y}
+
+G0 X-2.5 +{offset_x} Y-5 +{offset_y}
+
+'Material 1 ON
+'Material 2 OFF
+G0 X0 -{offset_x} Y0 -{offset_y}
+
+G1 X-2.5 Y5
+G1 X-2.5 +{offset_x} Y-5 +{offset_y}
+
+'Material 2 ON
+'Material 1 OFF
+G1 X0 -{offset_x} Y0 -{offset_y}
+
+G0 X-2.5 +{offset_x} Y5 -{offset_y}
+
+'Material 1 ON
+'Material 2 OFF
+G0 X0 -{offset_x} Y0 {offset_y}
+
+G1 X-2.5 Y-5
+G1 X-2.5 +{offset_x} Y5 -{offset_y}
+
+'Material 2 ON
+'Material 1 OFF
+G1 X0 -{offset_x} Y0 {offset_y}
+
+G0 X-2.5 +{offset_x} Y-5 +{offset_y}
+
+'Material 1 ON
+'Material 2 OFF
+
+G0 X0 -{offset_x} Y0 -{offset_y}
+
+G1 X-2.5 Y5
