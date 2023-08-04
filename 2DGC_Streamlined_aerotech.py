@@ -16,36 +16,43 @@ from datetime import datetime
 from datetime import date
 now = datetime.now() # datetime object containing current date and time
 current_date = date.today()
-dt_string = now.strftime("%d/%m/%Y %H:%M:%S")     # dd/mm/YY H:M:S
+dt_string = now.strftime("%d/%m/%Y")     # dd/mm/YY H:M:S
 ############################ INPUTS #############################################
-feed = 15 # feedrate mm/s
+feed = 10 # feedrate mm/s
 accel = 1000#700 # mm/s^2
 decel = -1000#-700 # mm/s^2
 
-offset = 0 #use a negative number to increase length of time/material being on (units in mm)
-start_delay =0 #(units in mm)
-testing = "circles" #"30x30 checkerboard, 3 rows, 3 col, y = 0.58, feed = " +str(feed) + " mm/s, accel = " + str(accel) + " mm/s^2"
-gcode_txt_imported = "1DGC_Generate_Checkerboard_CoreShell_gcode.txt"
+offset = 2.4 #3.75 #2.5 #use a negative number to increase length of time/material being on (units in mm)
+offset_initial = offset #5 #3.5
+start_delay = 0 #(units in mm)
 
-final_gcode_txt_export = "1DGC_Generate_Checkerboard_CoreShell_aerotech.txt"
+gcode_txt_imported = "1DGC_Generate_Gradient_M1_gcode.txt" #"1DGC_Generate_Checkerboard_SwitchingNozzle_gcode.txt" #"1DGC_Generate_Checkerboard_M1.txt"
+final_gcode_txt_export = "1DGC_Generate_Gradient_M1_aerotech.txt"
+
+number_of_ports_used = 1 # (aka number of materials used)
+
+resync_type = 'direction-based' # OPTIONS: 'command-based', 'direction-based', False
+
+resync_test_time_adjust = True
+resync_number = 1 # number of directions changes between resyncing
+
+PING_delay = 0.011305268287658692 # from AEROTECH_PING_data.txt
 
 
-number_of_ports_used = 2 # (aka number of materials used)
-
-Z_var = "D"
-z_height = 1
+Z_var = "C"
+z_height = 1.2
 z_o= -150 + z_height
 
 home = False  #do you want to home it? (True = yes)
 
-# Open the port for the python-hyrel connection
-
 # Open the ports for the pressure box
-press_com1 = 4 # core
-press_com2 = 5 # shell
+press_com1 = 6
+press_com2 = 5
+press_com3 = 4
 
 serialPort1 = openport(press_com1)
 serialPort2 = openport(press_com2)
+serialPort3 = openport(press_com3)
 
 # Open the port for the python-hyrel connection
 port_aerotech = 1 #port named in python code to connect to aerotech
@@ -78,7 +85,6 @@ print("Translating Gcode to Time....")
 
 ## splits up gcode into directions, distances, G command type (G1, G2, G3, etc)
 ## create a gcode,  distance, and direction dictionary
-start = time.time()
 def parse_gcode(gcode_list):
 
     ## Finds G-command (i.e., G1, G2, G3)
@@ -161,7 +167,10 @@ def parse_gcode(gcode_list):
                         # direction_dict[count].append(elem)
 
                 if "X" in direction_check and "Y" in direction_check and "Z" not in direction_check:
-                    slope = Y_dist_dict[count]/X_dist_dict[count]
+                    slope = False
+                    if X_dist_dict[count] != 0:
+                        slope = Y_dist_dict[count]/X_dist_dict[count]
+                        slope = True
                 else:
                     slope = False
 
@@ -226,13 +235,9 @@ All_var_dict = parse_output[8]
 slope_dict = parse_output[9]
 distance_commands_dict = parse_output[10]
 
-print("distance_commands_dict = ", distance_commands_dict)
-print("time to parse_gcode = ", time.time() - start)
-
 
 ## Combines "like" gcode lines into a continuous path (used to create final gcode and acceleration path)
-start = time.time()
-def condense_gcode(G_command_dict, All_var_dict, X_dist_dict, Y_dist_dict, Z_dist_dict, I_dist_dict, J_dist_dict):
+def condense_gcode(resync_number, resync_type, distance_commands_dict,G_command_dict, All_var_dict, X_dist_dict, Y_dist_dict, Z_dist_dict, I_dist_dict, J_dist_dict):
     ## pythag thm
     def pythag(x, y, z):
         return (sqrt(abs(float(x)) ** 2 + abs(float(y)) ** 2 + abs(float(z)) ** 2))
@@ -245,13 +250,12 @@ def condense_gcode(G_command_dict, All_var_dict, X_dist_dict, Y_dist_dict, Z_dis
         theta = b - a
         return theta
 
-    count = 0
+    dir_change_count = 0
     X_sum = X_dist_dict[0]
     Y_sum = Y_dist_dict[0]
     Z_sum = Z_dist_dict[0]
     I_0 = I_dist_dict[0]
     J_0 = J_dist_dict[0]
-
 
     Sum_G_command_dict = {0: G_command_dict[0]}
     Sum_var_dict = {0: All_var_dict[0]}
@@ -278,85 +282,149 @@ def condense_gcode(G_command_dict, All_var_dict, X_dist_dict, Y_dist_dict, Z_dis
 
     Sum_distance_dict = {0:sum_distance}
 
-    for i in range(1, len(G_command_dict)):
-        current_G_command = G_command_dict[i]
-        current_var = All_var_dict[i]
-        ## Combines "like" gcode lines into a continuous path
-        if G_command_dict[i] == G_command_dict[i - 1] and All_var_dict[i] == All_var_dict[i - 1] and slope_dict[i] == slope_dict[i-1]:
-            # '''G1 Commands'''
+    resync_trigger_distance_dict = {}            # dictionary that keeps track of where direction changes occur (use to trigger a resync after N number of direction changes). ex: if key = 12, the direction changes between keys 12 and 13 in distance_commands_dict
+    resync_trigger_distance_dict_V2 = {}            # used when in command-based mode
+    resync_trigger_numCommand_dict = {}          # dictionary that keeps track of where commands occur (use to trigger a resync after N number of commands). ex: if key = 1, key = 1 in distance_commands_dict is aux command
+
+    command_count = 0
+    i = 0 # count for number of times a distance command is used
+    for j in range(len(distance_commands_dict)):
+        type_check = type(distance_commands_dict[j])
+        if type_check == str:
+            command_count +=1
+
+            if command_count%resync_number == 0 and resync_type == 'command-based':
+                resync_trigger_numCommand_dict[j] = command_count
+
+
+        if type_check != str and i < len(G_command_dict) - 1:
+            i +=1
+            current_G_command = G_command_dict[i]
+            current_var = All_var_dict[i]
+            ## Combines "like" gcode lines into a continuous path
+            if G_command_dict[i] == G_command_dict[i - 1] and All_var_dict[i] == All_var_dict[i - 1] and slope_dict[i] == slope_dict[i-1]:
+                # '''G1 Commands'''
+                if current_G_command == "G1":
+                    X_sum += X_dist_dict[i]
+                    Y_sum += Y_dist_dict[i]
+                    Z_sum += Z_dist_dict[i]
+
+                # '''G2/G3 Commands'''
+                elif (round(I_dist_dict[i], 9) == round(I_dist_dict[i-1] - X_dist_dict[i-1]), 9) and (round(J_dist_dict[i], 9) == round(J_dist_dict[i-1] - Y_dist_dict[i-1]), 9):
+                    X_sum += X_dist_dict[i]
+                    Y_sum += Y_dist_dict[i]
+                    print("X_sum = ", X_sum)
+                    if round(X_sum, 9) == 0:
+                        X_sum = 0
+                    if round(Y_sum, 9) == 0:
+                        Y_sum = 0
+
+                else: # if it is not a continuous circle
+                    dir_change_count += 1
+
+                    X_sum = X_dist_dict[i]
+                    Y_sum = Y_dist_dict[i]
+                    Z_sum = Z_dist_dict[i]
+                    I_0 = I_dist_dict[i]  # I value is always referenced from starting point
+                    J_0 = J_dist_dict[i]  # J value is always referenced from starting point
+
+                    if resync_type == 'command-based':
+                        resync_trigger_distance_dict[dir_change_count - 1] = j
+
+                    elif resync_type == 'direction-based' and dir_change_count % resync_number == 0:
+                        resync_trigger_distance_dict[dir_change_count-1] = j
+
+            else:
+                dir_change_count += 1
+
+                X_sum = X_dist_dict[i]
+                Y_sum = Y_dist_dict[i]
+                Z_sum = Z_dist_dict[i]
+                I_0 = I_dist_dict[i]  # I value is always referenced from starting point
+                J_0 = J_dist_dict[i]  # J value is always referenced from starting point
+
+                if resync_type == 'command-based':
+                    resync_trigger_distance_dict[dir_change_count - 1] = j
+
+                elif resync_type == 'direction-based' and dir_change_count % resync_number == 0:
+                    resync_trigger_distance_dict_V2[j] = dir_change_count - 1
+                    resync_trigger_distance_dict[dir_change_count - 1] = j
+
+
+            ### Finds total distances that will be used in acceleration profile
             if current_G_command == "G1":
-                X_sum += X_dist_dict[i]
-                Y_sum += Y_dist_dict[i]
-                Z_sum += Z_dist_dict[i]
+                sum_distance = pythag(X_sum, Y_sum, Z_sum)
 
-            # '''G2/G3 Commands'''
-            elif (round(I_dist_dict[i], 9) == round(I_dist_dict[i-1] -X_dist_dict[i-1]), 9) and (round(J_dist_dict[i], 9) == round(J_dist_dict[i-1] - Y_dist_dict[i-1]), 9):
-                X_sum += X_dist_dict[i]
-                Y_sum += Y_dist_dict[i]
-                print("X_sum = ", X_sum)
-                if round(X_sum, 9) == 0:
-                    X_sum = 0
-                if round(Y_sum, 9) == 0:
-                    Y_sum = 0
-
-                # I_0 = I_dist_dict[i]        # I value is always referenced from starting point
-                # J_0 = J_dist_dict[i]        # J value is always referenced from starting point
-
-        else:
-            count += 1
-            X_sum = X_dist_dict[i]
-            Y_sum = Y_dist_dict[i]
-            Z_sum = Z_dist_dict[i]
-            I_0 = I_dist_dict[i]  # I value is always referenced from starting point
-            J_0 = J_dist_dict[i]  # J value is always referenced from starting point
-
-        ### Finds total distances that will be used in acceleration profile
-        if current_G_command == "G1":
-            sum_distance = pythag(X_sum, Y_sum, Z_sum)
-
-        #### for circles
-        else:
-            theta = find_theta(X_sum, Y_sum, I_0, J_0)
-            if current_G_command == "G3":
-                if theta <= 0:
-                    theta = 2 * np.pi - abs(theta)
+            #### for circles
             else:
                 theta = find_theta(X_sum, Y_sum, I_0, J_0)
-                if theta < 0:
-                    theta = abs(theta)
+                if current_G_command == "G3":
+                    if theta <= 0:
+                        theta = 2 * np.pi - abs(theta)
                 else:
-                    theta = 2 * np.pi - theta
+                    theta = find_theta(X_sum, Y_sum, I_0, J_0)
+                    if theta < 0:
+                        theta = abs(theta)
+                    else:
+                        theta = 2 * np.pi - theta
 
-            R = pythag(I_0, J_0, 0)
-            sum_distance = R * theta
+                R = pythag(I_0, J_0, 0)
+                sum_distance = R * theta
 
-        Sum_G_command_dict[count] = current_G_command # for writing condensed gcode
-        Sum_var_dict[count] = current_var # for writing condensed gcode
-        Sum_coord_dict[count] = [X_sum, Y_sum, Z_sum, I_0, J_0] # for writing condensed gcode
 
-        Sum_distance_dict[count] = sum_distance # for writing acceleration profile
+            Sum_G_command_dict[dir_change_count] = current_G_command # for writing condensed gcode
+            Sum_var_dict[dir_change_count] = current_var # for writing condensed gcode
+            Sum_coord_dict[dir_change_count] = [X_sum, Y_sum, Z_sum, I_0, J_0] # for writing condensed gcode
+            Sum_distance_dict[dir_change_count] = sum_distance # for writing acceleration profile
+
+    resync_trigger_distance_dict_2 = {} # to use when command-based
+    if resync_type == 'command-based':
+        dist_val = list(resync_trigger_distance_dict.values())
+        dist_key = list(resync_trigger_distance_dict.keys())
+        for key in resync_trigger_numCommand_dict:
+            i = 0
+            while True:
+                try:
+                    index = dist_val.index(key + i)
+                    break
+                except ValueError:
+                    index = []
+                try:
+                    index = dist_val.index(key - i)
+                    break
+                except ValueError:
+                    index = []
+
+                i += 1
+
+            new_key = dist_key[index]
+            new_val = dist_val[index]
+            resync_trigger_distance_dict_2[new_key] = new_val
+
+        resync_trigger_distance_dict = resync_trigger_distance_dict_2
 
     # print(Sum_G_command_dict) # G-commands
     # print(Sum_var_dict) # variables, X, Y, Z....
     # print(Sum_coord_dict) # coordinate values
-    #
     # print(Sum_distance_dict)
-
-    return Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, Sum_distance_dict
-condense_results = condense_gcode(G_command_dict, All_var_dict, X_dist_dict, Y_dist_dict, Z_dist_dict, I_dist_dict, J_dist_dict)
+    # print("reset based on number of commands: ", resync_trigger_numCommand_dict)
+    print("reset based on distance: ", resync_trigger_distance_dict)
+    return Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, Sum_distance_dict, resync_trigger_distance_dict
+condense_results = condense_gcode(resync_number, resync_type, distance_commands_dict, G_command_dict, All_var_dict,
+                                  X_dist_dict, Y_dist_dict, Z_dist_dict, I_dist_dict, J_dist_dict)
 Sum_G_command_dict = condense_results[0]
 Sum_var_dict = condense_results[1]
 Sum_coord_dict = condense_results[2]
 Sum_distance_dict = condense_results[3]
-print("time to condense_gcode = ", time.time() - start)
-print(Sum_G_command_dict)
-print(Sum_var_dict)
-## creates condensed gcode file
-start = time.time()
-def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict):
+resync_trigger_distance_dict = condense_results[4]
+# print(distance_commands_dict[31])
+# print(Sum_coord_dict[9])
+def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_trigger_distance_dict):
     # create txt for gcode used in 3d printer
+    resync_PING = ('\n\rFILEWRITE $hFile, TIMER(0, PERFORMANCE)')
+
     with open(final_gcode_txt_export, "w") as f:
-        f.write("DVAR $hFile\n\r")
+        f.write("DVAR $hFile\n\rDVAR $timer\n\r")
         f.write('G71 \nG76 \nG91	;G90 = absolute, G91 = relative \nG68 \nRAMP TYPE LINEAR X Y \nRAMP RATE ' +str(accel)+ '\n\rVELOCITY OFF\n\r')
 
         f.write("ENABLE X Y " + Z_var + "\n")
@@ -373,11 +441,13 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
         f.write("G1 F" + str(feed) + "\n\r")
 
         f.write("\n\rFILECLOSE")
-        f.write('\n$hFile = FILEOPEN "COM'+str(port_python) +'", 2')
+        f.write('\n$hFile = FILEOPEN "COM' + str(port_python) + '", 2')
         f.write('\nCOMMINIT $hFile, "baud=115200 parity=N data=8 stop=1"')
         f.write('\nCOMMSETTIMEOUT $hFile, -1, -1, 1000')
-        f.write('\n\rFILEWRITE $hFile, "start1"')
+        f.write('\n\rFILEWRITE $hFile, "start"')
         f.write('\nG4 P3\n\r')
+        f.write('\nTIMER 0 CLEAR')
+
 
         for i in range(len(Sum_coord_dict)):
             G_command = Sum_G_command_dict[i]
@@ -389,21 +459,25 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
             for j in range(len(Sum_coord_dict[i])):
                 dist = Sum_coord_dict[i][j]
                 variable = Sum_var_dict[i][j]
+                if variable == 'Z':
+                    variable = Z_var
                 if variable != 0 :
                     coordinates += str(variable) + str(dist) + " "
 
             f.write("\n\r" + coordinates)
 
+            if i != 0 and i < len(Sum_coord_dict) - 1 and i in resync_trigger_distance_dict:
+                f.write(resync_PING)
+
+        f.write('\n\rG0 ' + str(Z_var) + '30')
         f.write('\n\rFILECLOSE $hFile\nM02')
     print("\n", final_gcode_txt_export, "has been created\n\r")
     return f
-generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict)
-print("time to generate_gcode = ", time.time() - start)
 
+generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_command_dict, Sum_var_dict, Sum_coord_dict, resync_trigger_distance_dict)
 
 ## creates acceleration profile
-start = time.time()
-def accel_profile(Sum_distance_dict):
+def accel_profile(Sum_distance_dict, resync_trigger_distance_dict):
     import time
     def accel_length(v_0, v_f, accel):
         from sympy import symbols, solve
@@ -476,7 +550,10 @@ def accel_profile(Sum_distance_dict):
     decel_abs_dist = 0
     decel_abs_time = 0
 
+    flag_trigger = {0:0}
     for i in range(len(Sum_distance_dict)):
+        if i in resync_trigger_distance_dict:
+            flag_trigger[i+1] = i+1 # insert AFTER gcode line
         if accel == 0:
             steady_state_dist = abs(Sum_distance_dict[i])
             accel_dist = 0
@@ -519,9 +596,11 @@ def accel_profile(Sum_distance_dict):
                 flag_short_move[key] = flag_short_move_list
 
 
+        mismatch_resync_avg = 0
+
         steady_state_time = steady_state_dist/feed
         accel_dist_dict[i] = [accel_dist, steady_state_dist, decel_dist]
-        accel_time_dict[i] = [accel_time,steady_state_time, decel_time]
+        accel_time_dict[i] = [accel_time + mismatch_resync_avg/2,steady_state_time + mismatch_resync_avg/2, decel_time + mismatch_resync_avg]
 
         key = i #decel_abs_dist
 
@@ -531,9 +610,9 @@ def accel_profile(Sum_distance_dict):
 
         accel_dist_abs_dict[key] = [accel_abs_dist, steady_abs_dist, decel_abs_dist]
 
-        accel_abs_time = decel_abs_time + accel_time
+        accel_abs_time = decel_abs_time + accel_time + mismatch_resync_avg/2
         steady_abs_time = accel_abs_time + steady_state_time
-        decel_abs_time = steady_abs_time + decel_time
+        decel_abs_time = steady_abs_time + decel_time + mismatch_resync_avg/2
 
         accel_time_abs_dict[key] = [accel_abs_time, steady_abs_time, decel_abs_time]
 
@@ -542,15 +621,16 @@ def accel_profile(Sum_distance_dict):
     # print("accel_time_dict = ", accel_time_dict) # never used
     # print("accel_dist_abs_dict = ", accel_dist_abs_dict) # used in time-based function
     # print("accel_time_abs_dict = ", accel_time_abs_dict) # used in time-based function
-    return accel_dist_abs_dict, accel_time_abs_dict
-accel_profile_output = accel_profile(Sum_distance_dict)
+    #print(mismatch_resync_avg)
+    return accel_dist_abs_dict, accel_time_abs_dict, flag_trigger
+
+accel_profile_output = accel_profile(Sum_distance_dict, resync_trigger_distance_dict)
 accel_profile_distance = accel_profile_output[0]
 accel_profile_time = accel_profile_output[1]
-print("time to create accel_profile = ", time.time() - start)
+flag_trigger = accel_profile_output[2]
 
 ## creates dictionary of time and commands
-start = time.time()
-def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict):
+def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict, resync_trigger_distance_dict, flag_trigger, PING_delay):
     def findt(v_0, accel, x):
         import time
         from sympy import symbols, solve
@@ -580,31 +660,39 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
     flag_rel_dist_accel = {}
     flag_rel_dist_max_vel = {}
     flag_rel_dist_decel = {}
-    flag_count =0
+    flag_count = 0
     count = 0
+    time_resync = 0
     for j in range(len(distance_commands_dict)):
         if type(distance_commands_dict[j]) == str:
             time_dict[j] = distance_commands_dict[j]
         else:
             distance += abs(distance_commands_dict[j])
             for i in range(index_start, len(accel_profile_distance)):
+                # if i in flag_trigger:
+                #     if i == 0:
+                #         time_resync = PING_delay
+                #     else:
+                #         time_resync = accel_profile_time[i-1][2] + PING_delay # the last time before the resync is the end of the decel region of previous move
+
                 accel_region = accel_profile_distance[i][0]
                 max_velocity_region = accel_profile_distance[i][1]
                 decel_region = accel_profile_distance[i][2]
 
                 if distance >= decel_region:
-                    t_current = accel_profile_time[i][2]
+                    t_current = accel_profile_time[i][2] - time_resync
                     x_current = decel_region
+
                     t = t_current
                     index_start += 1
 
                 elif distance >= max_velocity_region:
-                    t_current = accel_profile_time[i][1]
+                    t_current = accel_profile_time[i][1] - time_resync
                     x_current = max_velocity_region
                     t = t_current
 
                 elif distance >= accel_region:
-                    t_current = accel_profile_time[i][0]
+                    t_current = accel_profile_time[i][0] - time_resync
                     x_current = accel_region
                     t = t_current
 
@@ -655,24 +743,34 @@ def distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel
             time_output = t
             time_list.append(time_output)
             time_dict[j] = time_output
-    # print("max_vel_count = ", count)
-    # print("flag count = ", flag_count)
+
     return time_dict
-time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict)
-start_delay_time = float(
-    distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [start_delay])[0])
-offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)])[0])
+
+time_dict = distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, distance_commands_dict, resync_trigger_distance_dict, flag_trigger, PING_delay)
+
+start_delay_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [start_delay],resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
+offset_time = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset)],resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
+offset_time_initial = float(distance2time(accel_profile_distance, accel_profile_time, feed, accel, decel, [abs(offset_initial)], resync_trigger_distance_dict, resync_trigger_distance_dict, flag_trigger)[0])
+
+locate_resync = list(resync_trigger_distance_dict.values())
+times_of_resync = []
+
+for i in range(len(time_dict)):
+    if i in locate_resync:
+        times_of_resync.append(time_dict[i])
+
 
 if offset < 0:
     offset_time = -offset_time
+if offset_initial < 0:
+    offset_time_initial = -offset_time_initial
 
-#offset_time = offset/feed
 
-print("time to create distance2time = ", time.time() - start)
-
-start = time.time()
 ## creates final dictionaries of commands and times to use
-def final_dicts(time_dict):
+def final_dicts(time_dict, resync_trigger_distance_dict, PING_delay):
+    locate_resync = list(resync_trigger_distance_dict.values())
+    resync_key_location = {}
+
     command_list = []
     time_based_dict_final = {}
     command_dict_final = {}
@@ -682,15 +780,22 @@ def final_dicts(time_dict):
     start_count_c = 0
     initial_commands = []
     initial_commands_trigger = 0
+    time_resync = 0
     for i in range(len(time_dict)):
         entry = time_dict[i]
         dict_count_c = dict_count_t
         if type(entry) != str:
-            time_based_dict_final[dict_count_t] = entry
+
+            if (i) in locate_resync:
+                resync_key_location[dict_count_t] = 'resync'
+                # time_resync = time_dict[i-1]
+
+            time_based_dict_final[dict_count_t] = entry - time_resync
             command_list = []
             count_t += 1
             start_count_c = 0
             initial_commands_trigger = 1
+
         else:
             command_list.append(entry)
             if initial_commands_trigger == 0:
@@ -709,16 +814,88 @@ def final_dicts(time_dict):
     # print("time_based_dict_final = ", time_based_dict_final)
     # print("command_dict_final = ", command_dict_final)
     # print("initial_commands = ", initial_commands )
-    return time_based_dict_final, command_dict_final, initial_commands
-final_dicts_output = final_dicts(time_dict)
+    #print(resync_key_location)
+
+    # for key_locate in resync_key_location:
+    #     time_dict_grouped[i] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_key < key <= key_locate])
+    #     command_dict_grouped[i] = dict([(key, val) for key, val in command_dict_final.items() if prev_key < key <= key_locate])
+    #     prev_key = key_locate
+    #     i += 1
+
+    time_group= {}
+    resync_time = 0
+    count = 0
+    prev_i = 0
+    time_TEST2 = {}
+    command_TEST2 = {}
+    for i in range(len(time_based_dict_final)):
+        if i in resync_key_location and i != 0:
+            resync_time = time_based_dict_final[i-1]
+
+            time_TEST2[count] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_i <= key < i])
+            command_TEST2[count] = dict([(key, val) for key, val in command_dict_final.items() if prev_i <= key < i])
+
+            prev_i = i
+            count += 1
+
+        current_time = time_based_dict_final[i] - resync_time
+        time_group[i] = current_time
+
+    time_TEST2[count] = dict([(key, val) for key, val in time_based_dict_final.items() if prev_i <= key < len(time_based_dict_final)])
+    command_TEST2[count] = dict([(key, val) for key, val in command_dict_final.items() if prev_i <= key < len(time_based_dict_final)])
+
+
+    # print('\n\n\n\n________HERE_____________________\n\n',time_TEST2)
+    # print(time_based_dict_final)
+
+
+    # print('time_group_dict = ', time_group_dict)
+    # print('time_group = ', time_group)
+    prev_key = 0
+    time_dict_grouped = {}
+    command_dict_grouped = {}
+    first_command = True
+    count = 0
+
+    if len(locate_resync) == 0:
+        time_dict_grouped[count] = time_based_dict_final
+        command_dict_grouped[count] = command_dict_final
+    else:
+        for i in range(len(time_group)):
+            if i != len(time_group)-1 and time_group[i+1] < time_group[i]:
+                if first_command == True:
+                    time_dict_grouped[count] = dict([(key, val) for key, val in time_group.items() if 0 <= key <= i])
+                    command_dict_grouped[count] = dict([(key, val) for key, val in command_dict_final.items() if 0 <= key <= i])
+                    prev_key = i
+                    first_command = False
+                else:
+                    time_dict_grouped[count] = dict([(key, val) for key, val in time_group.items() if prev_key < key <= i])
+                    command_dict_grouped[count] = dict([(key, val) for key, val in command_dict_final.items() if prev_key < key <= i])
+                    prev_key = i
+                count += 1
+        time_dict_grouped[count] = dict([(key, val) for key, val in time_group.items() if prev_key < key <= len(time_group)-1])
+        command_dict_grouped[count] = dict([(key, val) for key, val in command_dict_final.items() if prev_key < key <= len(time_group)-1])
+
+    #return time_based_dict_final, command_dict_final, initial_commands, resync_key_location
+    return time_based_dict_final, command_dict_final, initial_commands, resync_key_location
+
+final_dicts_output = final_dicts(time_dict, resync_trigger_distance_dict, PING_delay)
 time_based_dict_final = final_dicts_output[0]
 command_dict_final = final_dicts_output[1]
 initial_commands = final_dicts_output[2]
+resync_key_location = final_dicts_output[3]
 
 set_press = '[%s]' % ', '.join(map(str,initial_commands[:number_of_ports_used]))
 initial_toggle ='[%s]' % ', '.join(map(str, initial_commands[number_of_ports_used:]))
 final_dict_end = time.time()
-print("time to create final_dicts = ", time.time() - start)
+
+#times_of_resync.insert(0,0)
+if resync_number == 1:
+    times_of_resync = times_of_resync[1:]
+
+#times_of_resync.append(time_based_dict_final[len(time_based_dict_final)-1])
+
+print(times_of_resync)
 
 end_time = time.time()
 total_time = end_time - start_time
@@ -727,109 +904,156 @@ print("\nTotal time to translate distance to time: ", total_time)
 print("set_press: ", set_press)
 print("initial_toggle: ", initial_toggle)
 print("time_based_dict_final = ", time_based_dict_final)
-print("command_dict_final = ", command_dict_final)
+#print("command_dict_final = ", command_dict_final)
 
-
-###### WAITING FOR PING ##################################
 print("\nWaiting for ping to start....")
+###### WAITING FOR PING ##################################
 if __name__ == '__main__':
-
     ser = openport(port_aerotech)
     ser.reset_input_buffer()
 
-    told = time.time()
-    intervals = []
-
-    count = 0
     while True:
         bytesToRead = ser.inWaiting()
         if bytesToRead > 0:
-            print('\r\n------------------')
+            print('Received start PING')
+            break
+
+    exec(set_press)
+    print("Setting the pressures....")
+
+    #### Executes Absolute timing ####
+    time.sleep(3 - PING_delay - start_delay_time)
+
+    ser.reset_input_buffer()
+    time_stamps_from_aerotech = []
+    python_received_time_stamps = []
+    add_time_list = []
+    i = 0
+    count = 0
+    add_time = 0
+
+    start_time = time.time()
+    exec(initial_toggle)
+    while (i < len(command_dict_final)):
+        real_time = time.time() - start_time
+        bytesToRead = ser.inWaiting()
+        if resync_type != False and bytesToRead > 0:
+            python_recieved_time = real_time # to match print time rather than when the aux turn on or off
+            print('-------------Received command sync number ', count)
+            print('python time stamp t = ', python_recieved_time)
             message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
             message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
-            print('Received command: ' + message)
+            message = float(message.strip('\r\n'))/1000
+            print('aerotech time stamp t = ', message)
+            time_stamps_from_aerotech.append(message)
+            python_received_time_stamps.append(python_recieved_time)
 
-            if message == "start1\r\n":
-                pause = 0.011305268287658692#from AEROTECH_PING_data.txt
+            add_time = (python_recieved_time - PING_delay) - times_of_resync[count]
 
-                exec(set_press)
-                print("Setting the pressures....")
+            add_time_list.append(add_time)
+            print('calculated resync time stamp t = ', times_of_resync[count])
+            print('add_time = ', add_time)
+            count += 1
 
-                break
+        if i == 0:
+            offset = offset_time_initial
+        else:
+            offset = offset_time
 
-#### Executes Absolute timing ####
-print("Executing time-based code....")
-time.sleep(3-pause - start_delay_time)
+        if resync_test_time_adjust == False:
+            add_time = 0
 
-i = 0
-exec(initial_toggle)
-start_time = time.time()
-time_dict_list = []
-error_list = []
-real_time_list = []
-while (i < len(command_dict_final)):
-    current_time_stamp = time_based_dict_final[i] - offset_time
-    # if i == 0:
-    #     current_time_stamp = current_time_stamp - start_offset_time
-    real_time = time.time() - start_time
-    if (real_time >= (current_time_stamp) and i == i):
-        exec(command_dict_final[i])
-        error = float(real_time - current_time_stamp)
-        print("Time: ", real_time)
-        print("\tCommands: ", command_dict_final[i])
-        print("\tError: ",(error))
+        current_time_stamp_execute = (time_based_dict_final[i] - offset) + add_time
 
-        if time_based_dict_final[i] != 0:
-            time_dict_list.append(current_time_stamp)
-            real_time_list.append(real_time)
-            error_list.append(error)
+        if (real_time >= (current_time_stamp_execute)):
+            exec(command_dict_final[i])
+            #print("Time: ", real_time)
+            #print("\tCommands: ", command_dict_final[0][i])
 
-        i += 1
-print("DONE!")
+            i += 1
 
-serialPort1.close()
-serialPort2.close()
+    # ser.reset_input_buffer()
+    # bytesToRead = ser.inWaiting()
+    # if bytesToRead > 0:
+    #     python_recieved_time = time.time() - start_time  # to match print time rather than when the aux turn on or off
+    #     print('---------END----Received command sync number ')
+    #     print('python time stamp t = ', python_recieved_time)
+    #     message = ser.read(bytesToRead)  # creates type bytes, e.g., b'M792 ;SEND message\n'
+    #     # message = message.decode(encoding='utf-8')  # creates type string, e.g., 'M792 ;SEND message\n'
+    #     # message = float(message.strip('\r\n'))/1000
+    #     print('aerotech time stamp t = ', message)
+    #     time_stamps_from_aerotech.append(message)
+    #     python_received_time_stamps.append(python_recieved_time)
 
-# avg_error = np.average(error_list)
-# std_error = np.std(error_list)
+    serialPort1.close()
+    serialPort2.close()
+    serialPort3.close()
+
+
+    print("DONE!")
+
+
+
+# ### Data collections for resyncing
+# diff_python_aero_dict = {}
+# diff_resync_aero_dict = {}
+# diff_resync_python_dict = {}
+# time_stamps_from_aerotech_dict = {}
+# python_received_time_stamps_dict = {}
+# times_of_resync_dict = {}
+# for i in range(len(time_stamps_from_aerotech)):
+#     time_stamps_from_aerotech_dict[i] = time_stamps_from_aerotech[i]
+#     python_received_time_stamps_dict[i] = python_received_time_stamps[i] - PING_delay
+#     times_of_resync_dict[i] = times_of_resync[i]
 #
-# print("avg_error = ", avg_error)
-# print("std_error = ", std_error)
+#     diff_python_aero = time_stamps_from_aerotech_dict[i] - python_received_time_stamps_dict[i]
+#     diff_resync_aero = time_stamps_from_aerotech_dict[i] - times_of_resync_dict[i]
+#     diff_resync_python = (python_received_time_stamps_dict[i]) - times_of_resync_dict[i]
 #
-# from datetime import date
-# current_date = date.today()
-#
-# with open(str(current_date) + "_Time_error.txt", "a") as f:
-#     from datetime import datetime
-#     now = datetime.now() # datetime object containing current date and time
-#     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")     # dd/mm/YY H:M:S
-#     f.write('\r\n----------------------------')
-#     f.write('\r\ndate and time: ' + dt_string)
-#     f.write('\rgcode used: ' + gcode_txt_imported)
-#     f.write('\rTesting: ' + testing)
-#     f.write('\rnum_points = ' + str(len(error_list)))
-#     f.write("\rerror_list = " + str(error_list))
-#     f.write("\ravg_error = " + str(avg_error))
-#     f.write("\rstd_error = " + str(std_error))
+#     diff_python_aero_dict[i] = diff_python_aero
+#     diff_resync_aero_dict[i] = diff_resync_aero
+#     diff_resync_python_dict[i] = diff_resync_python
 #
 #
-# with open(str(current_date) + "_Real_time_plt.py", "a") as f:
-#     from datetime import datetime
-#     now = datetime.now() # datetime object containing current date and time
-#     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")     # dd/mm/YY H:M:S
-#     f.write('\r\n#----------------------------')
-#     f.write('\r\n#date and time: ' + dt_string)
-#     f.write('\r#gcode used: ' + gcode_txt_imported)
-#     f.write('\r#Testing: ' + testing)
-#     f.write('\rnum_points = ' + str(len(time_based_dict_final)))
-#     f.write("\rtime_dict = " + str(time_based_dict_final) + " #does not include offsets and delays")
-#     f.write("\rtime_list = " + str(time_dict_list) + " #includes offsets and delays")
-#     f.write("\rreal_time_list = " + str(real_time_list))
-#     f.write('\rerror_list = ' + str(error_list))
+# incr_diff_python_aero_dict = {}
+# incr_diff_resync_aero_dict = {}
+# incr_diff_resync_python_dict = {}
 #
-
-
-
-# for i in range(len(command_dict_final)):
-#     print("if time = ", time_based_dict_final[i])
-#     print("\t\texecute: ", command_dict_final[i])
+# for i in range(1, len(diff_python_aero_dict)):
+#     incr_diff_python_aero = diff_python_aero_dict[i] - diff_python_aero_dict[i-1]
+#     incr_diff_resync_aero = diff_resync_aero_dict[i] - diff_resync_aero_dict[i-1]
+#     incr_diff_resync_python = diff_resync_python_dict[i] - diff_resync_python_dict[i-1]
+#
+#     incr_diff_python_aero_dict[i] = incr_diff_python_aero
+#     incr_diff_resync_aero_dict[i] = incr_diff_resync_aero
+#     incr_diff_resync_python_dict[i] = incr_diff_resync_python #- PING_delay #subtract ping delay = 0.011305268287658692 from python time
+#
+# with open(now.strftime("%Y%m%d")+'_resync_data.txt', 'a') as f:
+#     # f.write('\n# aerotech_time_stamps_ = time PING sent according to aerotech')
+#     # f.write('\n# python_time_stamps_ = time python received PING')
+#     # f.write('\n# times_of_resync_ = calculated time python was supposed to receive PING')
+#     # f.write('\n# diff_python_aero_diff = aerotech - python')
+#     # f.write('\n# diff_resync_aero_ = aerotech - resync ')
+#     # f.write('\n# diff_resync_python_ = python - resync')
+#     # f.write('\n# incr_dif_ = diff between consecutive numbers')
+#     #
+#     # f.write('\n# Date: ' + dt_string)
+#     f.write('\n# F = ' + str(feed) + '; A = ' + str(accel) + ';PING_delay = ' + str(PING_delay))
+#     f.write('\n# ' + testing)
+#     f.write('\n# defining feature flag: ' + defining_feature)
+#
+#     f.write("\n\naerotech_time_stamps_" + defining_feature + " = " + str(time_stamps_from_aerotech_dict))
+#     f.write('\npython_time_stamps_' + defining_feature + " = " + str(python_received_time_stamps_dict))
+#     f.write('\ntimes_of_resync_' + defining_feature + " = " + str(times_of_resync_dict))
+#
+#     f.write('\n\nadd_time_list_'+ defining_feature + " = " + str(add_time_list))
+#
+#     f.write("\n\ndiff_python_aero_" + defining_feature + " = " + str(diff_python_aero_dict))
+#     f.write('\ndiff_resync_aero_' + defining_feature + " = " + str(diff_resync_aero_dict))
+#     f.write('\ndiff_resync_python_' + defining_feature + " = " + str(diff_resync_python_dict))
+#
+#     f.write("\n\nincr_diff_python_aero_" + defining_feature + " = " + str(incr_diff_python_aero_dict))
+#     f.write('\nincr_diff_resync_aero_' + defining_feature + " = " + str(incr_diff_resync_aero_dict))
+#     f.write('\nincr_diff_resync_python_' + defining_feature + " = " + str(incr_diff_resync_python_dict))
+#
+#     f.write('\n-----------------------------------------\n')
