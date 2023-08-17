@@ -71,20 +71,20 @@ def process_image(image, scale_factor):
 
     return x_dist, num_filament_pix_list
 
-pp = PdfPages('230706_Scan3200dpi_15to65psi_1incr_and_10incr_for_230817_8ptFont.pdf')
+pp = PdfPages('230706_zheight_15to65psi_1incr_and_10incr_for_230817_8ptFont.pdf')
 
-scale_bar_image = 'ScaleBar_10mm_3200dpi_scan.png'
-scale_length_mm = 10
+scale_bar_image = '230706_1mm50pixels_ScaleBar_230731_ruler_edge.png'
+scale_length_mm = 1
 scale_factor = scale_bar_process_image(scale_bar_image, scale_length_mm)
 
 fig1 = plt.figure()
-image = '230706_Scan3200dpi_15to65psi_10incr_Traditional_Sample1.png'
+image = '230706_Photo_zheight_230731_15to65psi_10incr_for_python_Traditional.png'
 output = process_image(image, scale_factor)
 x_dist = output[0]
 fil_width = output[1]
 plt.plot(x_dist, fil_width, color = 'k')
 
-image = '230706_Scan3200dpi_15to65psi_10incr_DGC_Sample1.png'
+image = '230706_Photo_zheight_230731_15to65psi_10incr_for_python_DGC.png'
 output = process_image(image, scale_factor)
 x_dist = output[0]
 fil_width = output[1]
@@ -93,7 +93,7 @@ plt.xlim(0, 40)
 plt.ylim(0, 3)
 
 plt.xlabel('Distance (mm)')
-plt.ylabel('Filament width (mm)')
+plt.ylabel('Filament height (mm)')
 
 plt.legend(labels = ['Conventional', 'Time-based'],
            frameon = False
@@ -102,14 +102,14 @@ plt.tick_params(direction = "in")
 
 ########################################
 fig2 = plt.figure()
-image = '230706_Scan3200dpi_15to65psi_1incr_Traditional_Sample1.png'
+image = '230706_Photo_zheight_230731_15to65psi_1incr_for_python_v2_Traditional.png'
 output = process_image(image, scale_factor)
 x_dist = output[0]
 fil_width = output[1]
 plt.plot(x_dist, fil_width, color = 'k')
 
 #fig3 = plt.figure()
-image = '230706_Scan3200dpi_15to65psi_1incr_DGC_Sample1.png'
+image = '230706_Photo_zheight_230731_15to65psi_1incr_for_python_v2_DGC.png'
 output = process_image(image, scale_factor)
 x_dist = output[0]
 fil_width = output[1]
@@ -119,7 +119,7 @@ plt.xlim(0, 40)
 plt.ylim(0, 3)
 
 plt.xlabel('Distance (mm)')
-plt.ylabel('Filament width (mm)')
+plt.ylabel('Filament height (mm)')
 
 plt.legend(labels = ['Conventional', 'Time-based'],
            frameon = False
