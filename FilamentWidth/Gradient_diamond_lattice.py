@@ -96,7 +96,7 @@ def generate_diamond_lattice(num_rows, num_zig_units, len_zig, filament_width):
 
     x_zig = len_zig[0]
     y_zig = len_zig[1]
-    distance_list = [[10,0]]
+    distance_list = []
     for rows in range(num_rows):
         for zig_units in range(num_zig_units):
             if (rows+1)%2 != 0: #odd rows
@@ -116,8 +116,6 @@ def generate_diamond_lattice(num_rows, num_zig_units, len_zig, filament_width):
                 else:
                     distance_list.append([-x_zig, -y_zig])
 
-    # for elem in distance_list:
-    #     print('G1 X' + str(elem[0]) + ' Y' + str(elem[1]))
     return distance_list
 
 def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file, valveON, valveOFF, setpress_start, toggleON, toggleOFF):
@@ -228,22 +226,31 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, 
 
 
 ### File names
-export_file = '230829_Gradient_diamond_lattice_gcode.txt'
+export_file_gradient = '230831_2Layers_05mm_25_65_Gradient_diamond_lattice_gcode.txt'
+export_file_no_gradient = '230831_5Layers_NO_Gradient_diamond_lattice_gcode.txt'
 save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
+Z_var = 'B'
 
 ### Geometric Settings
 num_rows = 5
 num_zig_units = 5 # number of diagonals per row (use odd number)
-len_zig = [7, 7] # [x, y]
-filament_width = 1
+len_zig = [5, 5] # [x, y]
+filament_width = 3.5
+filament_width_no_gradient = .2
 segments = ['length', 0.5] # ['type', value], type options: 'length', 'number'
-pressure_range = [25, 50]
+pressure_range = [25, 65]
+z_height = 1
+z_height_no_gradient = 0.25
+num_layers = 2
+
+
 
 ### Pressure box and valve settings
 com = "serialPort1"
-valve = 1
+valve = 6
 
 setpress_start = str('\n\r' + com + '.write(' + str(setpress(pressure_range[1])) + ')') # material 1
+setpress_noGradient = str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range)) + ')')) # material 1
 toggleON = str('\n\r'+com +'.write('  + str(togglepress()) + ')') # turn on material 2
 toggleOFF = toggleON
 
@@ -252,16 +259,56 @@ valveOFF = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', False)'
 
 
 input_line_list = generate_diamond_lattice(num_rows, num_zig_units, len_zig,filament_width)
+reverse_line_list = input_line_list[::-1]
+
+
 import os.path
-completeName = os.path.join(save_path, export_file)
+completeName = os.path.join(save_path, export_file_gradient)
 f = open(completeName, "w")
 f.write(setpress_start)
 f.write(toggleON)
 f.write(valveON)
 
-for i in range(len(input_line_list)):
-    input_line = input_line_list[i]
-    Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
+for layer in range(num_layers):
+    if (layer+1)%2 != 0: #odd layer
+        if (layer + 1) == 1:
+            f.write('\nG1 X10')
+        for i in range(len(input_line_list)):
+            input_line = input_line_list[i]
+            Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file_gradient, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
+    else:
+        for i in range(len(reverse_line_list)):
+            input_line = []
+            for elem in reverse_line_list[i]:
+                input_line.append(elem*-1)
+            Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file_gradient, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
+
+    f.write('\nG1 Z'+str(z_height))
 
 f.write(valveOFF)
 f.write(toggleOFF)
+
+f.close()
+##################### NO GRADIENT
+input_line_list = generate_diamond_lattice(num_rows, num_zig_units, len_zig, filament_width_no_gradient)
+reverse_line_list = input_line_list[::-1]
+
+completeName = os.path.join(save_path, export_file_no_gradient)
+f = open(completeName, "w")
+f.write(str('\nFILEWRITE $hFile1, "\x05\x02\x30\x34\x44\x49\x20\x20\x43\x46\x03"'))
+for layer in range(num_layers):
+    if (layer+1)%2 != 0: #odd layer
+        if (layer + 1) == 1:
+            f.write('\nG1 X10')
+        for i in range(len(input_line_list)):
+            input_line = input_line_list[i]
+            f.write('\nG1 X' + str(input_line[0]) + ' Y' + str(input_line[1]))
+    else:
+        for i in range(len(reverse_line_list)):
+            input_line = []
+            for elem in reverse_line_list[i]:
+                input_line.append(elem*-1)
+            f.write('\nG1 X' + str(input_line[0]) + ' Y' + str(input_line[1]))
+
+    f.write('\nG1 ' + str(Z_var)+str(z_height_no_gradient))
+f.write(str('\nFILEWRITE $hFile1, "\x05\x02\x30\x34\x44\x49\x20\x20\x43\x46\x03"'))

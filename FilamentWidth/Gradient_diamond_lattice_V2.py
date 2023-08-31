@@ -96,7 +96,7 @@ def generate_diamond_lattice(num_rows, num_zig_units, len_zig, filament_width):
 
     x_zig = len_zig[0]
     y_zig = len_zig[1]
-    distance_list = [[10,0]]
+    distance_list = []
     for rows in range(num_rows):
         for zig_units in range(num_zig_units):
             if (rows+1)%2 != 0: #odd rows
@@ -150,7 +150,7 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, 
         segment_len_input = line_length/num_segments
         first_n_last_segment_len = segment_len
 
-    if num_segments%2 == 0:
+    if num_segments%3 == 0:
         pressure_divide = num_segments//3 - 1
     else:
         pressure_divide = num_segments//3
@@ -158,21 +158,29 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, 
     pressure_change_incr = (pressure_range[1] - pressure_range[0]) / (pressure_divide)
     pressure = pressure_range[1]
 
+    if num_segments%3 == 0:
+        add = 1
+    else:
+        add = 1
+
     if len(input_dist) == 1: # horizontal or vertical lines
+        pressure = pressure_range[1]
         for i in range(num_segments):
             sign = input_dist[0] / abs(input_dist[0])
 
             '''PRESSURES'''
             valve_toggleOFF = '\n'
             valve_toggleON = '\n'
-            if 1 < (i + 1) <= num_segments // 3 + 1:  # decreasing pressure for first segment
+            if (i+1) == 1:
+                pressure = pressure_range[1]
+
+            elif (i + 1) < (num_segments // 3) + 1:  # decreasing pressure for first segment
                 pressure -= pressure_change_incr
                 valve_toggleOFF = valveOFF
                 valve_toggleON = valveON
 
-            elif (i + 1) < (2*num_segments // 3) + 1:
-                pressure = pressure
-
+            elif (i + 1) <= (2*(num_segments // 3)) + add:
+                pressure = pressure_range[0]
 
             else:
                 pressure += pressure_change_incr
@@ -190,10 +198,12 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, 
 
 
     elif len(input_dist) == 2: # sloped lines
+        pressure = pressure_range[1]
+
         line_slope = abs(input_dist[1] / input_dist[0])
         a_sign = input_dist[0] / abs(input_dist[0])
         b_sign = input_dist[1] / abs(input_dist[1])
-
+        #print('---------- here', num_segments)
         for i in range(num_segments):
 
             a_segment = segment_len / np.sqrt(1 + line_slope ** 2)
@@ -205,14 +215,16 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, 
             '''PRESSURES'''
             valve_toggleOFF = '\n'
             valve_toggleON = '\n'
-            if 1 < (i + 1) <= num_segments // 3 +1:  # decreasing pressure for first segment
+            if (i + 1) == 1:
+                pressure = pressure_range[1]
+
+            elif (i + 1) < (num_segments // 3) + 1:  # decreasing pressure for first segment
                 pressure -= pressure_change_incr
                 valve_toggleOFF = valveOFF
                 valve_toggleON = valveON
 
-            elif (i + 1) < 2 * num_segments // 3 + 1:
-                pressure = pressure
-
+            elif (i + 1) <= (2 * (num_segments // 3)) + add:
+                pressure = pressure_range[0]
 
             else:
                 pressure += pressure_change_incr
@@ -227,20 +239,22 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, 
 
 
 ### File names
-export_file = '230829_Gradient_diamond_lattice_gcode.txt'
+export_file = '230831_10Layers_1mm_40_70_Gradient_diamond_lattice_V2_gcode.txt'
 save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
 ### Geometric Settings
 num_rows = 5
 num_zig_units = 5 # number of diagonals per row (use odd number)
 len_zig = [5, 5] # [x, y]
-filament_width = 1
-segments = ['length', .5] # ['type', value], type options: 'length', 'number'
-pressure_range = [21, 42]
+filament_width = 0.4
+segments = ['length', 1] # ['type', value], type options: 'length', 'number'
+pressure_range = [40, 70]
+z_height = .32
+num_layers = 10
 
 ### Pressure box and valve settings
 com = "serialPort1"
-valve = 1
+valve = 6
 
 setpress_start = str('\n\r' + com + '.write(' + str(setpress(pressure_range[1])) + ')') # material 1
 toggleON = str('\n\r'+com +'.write('  + str(togglepress()) + ')') # turn on material 2
@@ -251,6 +265,8 @@ valveOFF = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', False)'
 
 
 input_line_list = generate_diamond_lattice(num_rows, num_zig_units, len_zig,filament_width)
+reverse_line_list = input_line_list[::-1]
+
 import os.path
 completeName = os.path.join(save_path, export_file)
 f = open(completeName, "w")
@@ -258,9 +274,23 @@ f.write(setpress_start)
 f.write(toggleON)
 f.write(valveON)
 
-for i in range(len(input_line_list)):
-    input_line = input_line_list[i]
-    Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
+for layer in range(num_layers):
+    if (layer+1)%2 != 0: #odd layer
+        if (layer + 1) == 1:
+            f.write('\nG1 X10')
+        for i in range(len(input_line_list)):
+            input_line = input_line_list[i]
+            Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
+    else:
+        for i in range(len(reverse_line_list)):
+            input_line = []
+            for elem in reverse_line_list[i]:
+                input_line.append(elem*-1)
+            Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
+
+    f.write('\nG1 Z'+str(z_height))
 
 f.write(valveOFF)
 f.write(toggleOFF)
+
+f.close()
