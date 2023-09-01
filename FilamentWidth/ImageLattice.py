@@ -59,7 +59,7 @@ def ImageLattice(image, fil_spacing, num_layers):
                     if pixel > black_thresh and prev_pixel <= black_thresh:
                         strut_dist = x_sign_odd_layer * strut_dist
                         strut_var = 'X'
-                        first_turn = True
+                        
                         turn_dist = y_sign_odd_row * fil_spacing
                         turn_var = 'Y'
 
