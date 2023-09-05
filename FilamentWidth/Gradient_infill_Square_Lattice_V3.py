@@ -205,7 +205,7 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, pressure_gr
             print('Pressure = ', pressure)
 
             f.write('\nG1 ' + input_variables[0] + str(a_sign*a_segment) + ' ' + input_variables[1] + str(b_sign*b_segment))
-def gradient_square_lattice(fil_spacing, num_filaments, num_layers, fil_width, layer_height, pressure_range, valveON, valveOFF,):
+def gradient_square_lattice(fil_spacing, num_filaments, num_layers, segment_length, layer_height, pressure_range, valveON, valveOFF,):
     length = ((num_filaments-1)*fil_spacing)
     distance_list = []
     var_list = []
@@ -251,7 +251,7 @@ def gradient_square_lattice(fil_spacing, num_filaments, num_layers, fil_width, l
             print(';-------------------', round(mid_point_pressure,2))
             pressure_range_filament = [mid_point_pressure, pressure_range[1]]
 
-            segments = ['length', fil_spacing]
+            segments = ['length', segment_length]
 
             if (layer + 1)%2 != 0: # odd layer
                 if layer > 0:
@@ -315,16 +315,17 @@ def gradient_square_lattice(fil_spacing, num_filaments, num_layers, fil_width, l
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     ### File names
-    export_file = '230901_GradientInfillV3_10Layers_2mmspacing_21numfilaments_pressure22_30.txt'
-    save_path = ''#'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
+    export_file = '230905_GradientInfillV3_5Layers_2mmspacing_segment1mm_20x20_pressure22_32_gcode.txt'
+    save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
     ### Geometric Settings
     fil_spacing = 2
-    num_filaments = 22
-    num_layers = 10
+    segment_length = 1
+    num_filaments = 10
+    num_layers = 5
     fil_width = 1
-    layer_height = 1
-    pressure_range = [22, 30]
+    layer_height = 0.65
+    pressure_range = [22, 32]
     #gradient_square_lattice(fil_spacing, num_filaments, num_layers, fil_width, layer_height, pressure_range)
 
     ### Pressure box and valve settings
@@ -346,7 +347,8 @@ if __name__ == '__main__':
     f.write(toggleON)
     f.write(valveON)
 
-    gradient_square_lattice(fil_spacing, num_filaments, num_layers, fil_width, layer_height, pressure_range, valveON, valveOFF)
+    gradient_square_lattice(fil_spacing, num_filaments, num_layers, fil_width, layer_height, pressure_range, valveON,
+                            valveOFF)
 
     f.write(valveOFF)
     f.write(toggleOFF)

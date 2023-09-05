@@ -4,7 +4,9 @@ Date: 8/29/23
 
 This function creates a diamond lattice structure composed of a zig-zag print path.
 Gradient thickness towards the nodes.
+1/3 1/3 1/3 - decr steady incr
 '''
+
 def setpress(pressure):
     # IMPORTS
     from codecs import encode
@@ -92,7 +94,7 @@ def togglepress():
     return toggle
 import numpy as np
 
-def generate_diamond_lattice(num_rows, num_zig_units, len_zig, filament_width):
+def generate_diamond_lattice(num_rows, num_zig_units, len_zig, corner_width):
 
     x_zig = len_zig[0]
     y_zig = len_zig[1]
@@ -108,7 +110,7 @@ def generate_diamond_lattice(num_rows, num_zig_units, len_zig, filament_width):
                 if (zig_units+1)%2 !=0: # odd zig
                     if (zig_units+1) == 1 or (zig_units+1) == num_zig_units: # this sections limits overlap at the peaks of the diamonds
                         slope = len_zig[1] / len_zig[0]
-                        x_lengthen_for_fil = filament_width / (2 * np.sqrt(1 + slope ** 2))
+                        x_lengthen_for_fil = corner_width / (2 * np.sqrt(1 + slope ** 2))
                         y_lengthen_for_fil = slope * x_lengthen_for_fil
                         distance_list.append([-(x_zig), y_zig + y_lengthen_for_fil])
                     else:
@@ -239,18 +241,19 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, 
 
 
 ### File names
-export_file = '230831_10Layers_1mm_40_70_Gradient_diamond_lattice_V2_gcode.txt'
+export_file = '230905_2Layers_0.5mmsegments_22_32_Gradient_diamond_lattice_V2_gcode.txt'
 save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
 ### Geometric Settings
 num_rows = 5
 num_zig_units = 5 # number of diagonals per row (use odd number)
 len_zig = [5, 5] # [x, y]
-filament_width = 0.4
-segments = ['length', 1] # ['type', value], type options: 'length', 'number'
-pressure_range = [40, 70]
-z_height = .32
-num_layers = 10
+corner_width = 1.25 # controls the distance between where the corners of the zig zag meet
+filament_width = 1
+segments = ['length', 0.5] # ['type', value], type options: 'length', 'number'
+pressure_range = [22, 32]
+z_height = .65
+num_layers = 2
 
 ### Pressure box and valve settings
 com = "serialPort1"
@@ -264,7 +267,7 @@ valveON = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', True)'
 valveOFF = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', False)'
 
 
-input_line_list = generate_diamond_lattice(num_rows, num_zig_units, len_zig,filament_width)
+input_line_list = generate_diamond_lattice(num_rows, num_zig_units, len_zig, corner_width)
 reverse_line_list = input_line_list[::-1]
 
 import os.path
@@ -274,22 +277,68 @@ f.write(setpress_start)
 f.write(toggleON)
 f.write(valveON)
 
+f.write('\nG1 X10')
 for layer in range(num_layers):
     if (layer+1)%2 != 0: #odd layer
-        if (layer + 1) == 1:
-            f.write('\nG1 X10')
+        ## extra layers at beginning
+        f.write(valveOFF)
+        f.write(str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range))) + ')'))  # material 1
+        f.write(valveON)
+        for lines in range(2):
+            if (lines +1)%2 != 0: # odd
+                f.write('\nG1 X' + str(len_zig[0]* num_zig_units))
+            else:
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+
+            f.write('\nG1 Y' + str(filament_width))
+
         for i in range(len(input_line_list)):
             input_line = input_line_list[i]
             Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
+
+        ## extra layers at end
+        f.write(valveOFF)
+        f.write(str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range))) + ')'))  # material 1
+        f.write(valveON)
+        for lines in range(2):
+            f.write('\nG1 Y' + str(filament_width))
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+
     else:
+        ## extra layers at begin
+        f.write(valveOFF)
+        f.write(str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range))) + ')'))  # material 1
+        f.write(valveON)
+        for lines in range(2):
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+            f.write('\nG1 Y-' + str(filament_width))
+
         for i in range(len(reverse_line_list)):
             input_line = []
             for elem in reverse_line_list[i]:
                 input_line.append(elem*-1)
             Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
 
+        ## extra layers at end
+        f.write(valveOFF)
+        f.write(str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range))) + ')'))  # material 1
+        f.write(valveON)
+        for lines in range(2):
+            f.write('\nG1 Y-' + str(filament_width))
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+
     f.write('\nG1 Z'+str(z_height))
 
+f.write('\nG1 X-10')
 f.write(valveOFF)
 f.write(toggleOFF)
 

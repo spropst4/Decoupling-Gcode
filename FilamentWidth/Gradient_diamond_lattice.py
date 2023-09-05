@@ -4,6 +4,7 @@ Date: 8/29/23
 
 This function creates a diamond lattice structure composed of a zig-zag print path.
 Gradient thickness towards the nodes.
+1/2 1/2 - decr incr
 '''
 def setpress(pressure):
     # IMPORTS
@@ -226,20 +227,22 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, save_path, 
 
 
 ### File names
-export_file_gradient = '230831_2Layers_05mm_25_65_Gradient_diamond_lattice_gcode.txt'
-export_file_no_gradient = '230831_5Layers_NO_Gradient_diamond_lattice_gcode.txt'
+export_file_gradient = '230905_2Layers_05mm_20psi_30psi_Gradient_diamond_lattice_gcode.txt'
+export_file_no_gradient = '230905_2Layers_05mm_20psi_30psi_NOGradient_diamond_lattice_gcode.txt'
 save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
-Z_var = 'B'
+Z_var = 'C'
 
 ### Geometric Settings
 num_rows = 5
 num_zig_units = 5 # number of diagonals per row (use odd number)
 len_zig = [5, 5] # [x, y]
-filament_width = 3.5
+corner_width = 1.5
+filament_width = 1.5 # controls the distance between where the corners of the zig zag meet
+
 filament_width_no_gradient = .2
 segments = ['length', 0.5] # ['type', value], type options: 'length', 'number'
-pressure_range = [25, 65]
-z_height = 1
+pressure_range = [20, 30]
+z_height = 0.7
 z_height_no_gradient = 0.25
 num_layers = 2
 
@@ -258,7 +261,7 @@ valveON = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', True)'
 valveOFF = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', False)'
 
 
-input_line_list = generate_diamond_lattice(num_rows, num_zig_units, len_zig,filament_width)
+input_line_list = generate_diamond_lattice(num_rows, num_zig_units, len_zig,corner_width)
 reverse_line_list = input_line_list[::-1]
 
 
@@ -269,22 +272,68 @@ f.write(setpress_start)
 f.write(toggleON)
 f.write(valveON)
 
+f.write('\nG1 X10')
 for layer in range(num_layers):
     if (layer+1)%2 != 0: #odd layer
-        if (layer + 1) == 1:
-            f.write('\nG1 X10')
+        ## extra layers at beginning
+        f.write(valveOFF)
+        f.write(str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range))) + ')'))  # material 1
+        f.write(valveON)
+        for lines in range(2):
+            if (lines +1)%2 != 0: # odd
+                f.write('\nG1 X' + str(len_zig[0]* num_zig_units))
+            else:
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+
+            f.write('\nG1 Y' + str(filament_width))
+
         for i in range(len(input_line_list)):
             input_line = input_line_list[i]
             Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file_gradient, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
+
+        ## extra layers at end
+        f.write(valveOFF)
+        f.write(str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range))) + ')'))  # material 1
+        f.write(valveON)
+        for lines in range(2):
+            f.write('\nG1 Y' + str(filament_width))
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+
     else:
+        ## extra layers at begin
+        f.write(valveOFF)
+        f.write(str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range))) + ')'))  # material 1
+        f.write(valveON)
+        for lines in range(2):
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+            f.write('\nG1 Y-' + str(filament_width))
+
         for i in range(len(reverse_line_list)):
             input_line = []
             for elem in reverse_line_list[i]:
                 input_line.append(elem*-1)
             Gradient_line_segmentation(input_line, segments, pressure_range, save_path, export_file_gradient, valveON, valveOFF, setpress_start, toggleON, toggleOFF)
 
+        ## extra layers at end
+        f.write(valveOFF)
+        f.write(str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range))) + ')'))  # material 1
+        f.write(valveON)
+        for lines in range(2):
+            f.write('\nG1 Y-' + str(filament_width))
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+
     f.write('\nG1 Z'+str(z_height))
 
+f.write('\nG1 X-10')
 f.write(valveOFF)
 f.write(toggleOFF)
 
@@ -296,19 +345,52 @@ reverse_line_list = input_line_list[::-1]
 completeName = os.path.join(save_path, export_file_no_gradient)
 f = open(completeName, "w")
 f.write(str('\nFILEWRITE $hFile1, "\x05\x02\x30\x34\x44\x49\x20\x20\x43\x46\x03"'))
+f.write('\nG1 X10')
 for layer in range(num_layers):
     if (layer+1)%2 != 0: #odd layer
-        if (layer + 1) == 1:
-            f.write('\nG1 X10')
+        ## extra layers at beginning
+        for lines in range(2):
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+
+            f.write('\nG1 Y' + str(filament_width))
+
         for i in range(len(input_line_list)):
             input_line = input_line_list[i]
             f.write('\nG1 X' + str(input_line[0]) + ' Y' + str(input_line[1]))
+
+        ## extra layers at end
+        for lines in range(2):
+            f.write('\nG1 Y' + str(filament_width))
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
     else:
+        ## extra layers at beginning
+        for lines in range(2):
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+            f.write('\nG1 Y-' + str(filament_width))
         for i in range(len(reverse_line_list)):
             input_line = []
             for elem in reverse_line_list[i]:
                 input_line.append(elem*-1)
             f.write('\nG1 X' + str(input_line[0]) + ' Y' + str(input_line[1]))
 
+        ## extra layers at end
+        for lines in range(2):
+            f.write('\nG1 Y-' + str(filament_width))
+            if (lines + 1) % 2 != 0:  # odd
+                f.write('\nG1 X' + str(len_zig[0] * num_zig_units))
+            else:
+                f.write('\nG1 X-' + str(len_zig[0] * num_zig_units))
+
     f.write('\nG1 ' + str(Z_var)+str(z_height_no_gradient))
+
+f.write('\nG1 X-10')
 f.write(str('\nFILEWRITE $hFile1, "\x05\x02\x30\x34\x44\x49\x20\x20\x43\x46\x03"'))
