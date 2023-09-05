@@ -214,7 +214,6 @@ def image_2_gcode_CheckerboardCube_reverseprint(image_name, fil_width,checker_si
     for layers in range(img.shape[0]):
 
         if (layers + 1) % 2 == 0:  # even layers
-
             y_sign = -1
         else:  # odd layers:
             y_sign = 1
@@ -252,18 +251,23 @@ def image_2_gcode_CheckerboardCube_reverseprint(image_name, fil_width,checker_si
                             color_OFF = color_OFF_list[k]
 
                     if dist != 0:
-                        gcode_list.append(gcode)
-                        dist_list.append(dist_sign * dist)
+                        if pixel == color_list[1]:
+                            gcode_list.append(gcode + str(dist_sign * dist))
+                            #dist_list.append(dist_sign * dist)
 
-                    else:
-                        gcode_list.append('')
-                        dist_list.append('')
+                        if pixel == color_list[0]:
+                            gcode_line = [gcode + str(dist_sign*dist)]
+                            input_line = find_distances(gcode_line)
+                            gcode_segmented_output = Gradient_line_segmentation(input_line, segments, pressure_range, valveON,valveOFF)
+                            gcode_list_segmented = gcode_segmented_output
+                            for line in gcode_list_segmented:
+                                gcode_list.append(line)
 
 
                     if first_toggle_ON == False:
-                        command_list.append([color_ON, prev_color_OFF])
+                        gcode_list.append(color_ON)
                     else:
-                        command_list.append([color_ON])
+                        gcode_list.append(color_ON)
                         first_toggle_ON = False
 
                     dist = 0
@@ -278,41 +282,41 @@ def image_2_gcode_CheckerboardCube_reverseprint(image_name, fil_width,checker_si
                 prev_pixel = pixel
                 prev_color_OFF = color_OFF
 
-            gcode_list.append(gcode)
-            dist_list.append(dist_sign * dist)
-            command_list.append('')
+            if pixel == color_list[0]:
+                gcode_list.append(gcode + str(dist_sign * dist))
+
+            else:
+                gcode_line = [gcode + str(dist_sign * dist)]
+                input_line = find_distances(gcode_line)
+                gcode_segmented_output = Gradient_line_segmentation(input_line, segments, pressure_range, valveON,valveOFF)
+                gcode_list_segmented = gcode_segmented_output
+                for line in gcode_list_segmented:
+                    gcode_list.append(line)
 
             if (i+1) != len(img):
-                gcode_list.append('G1 Y')
-                dist_list.append(y_sign * fil_width)
-                command_list.append('')
+                gcode_list.append('G1 Y' + str(y_sign * fil_width))
+
+
             else:
-                gcode_list.append('G1 Z')
-                dist_list.append(fil_width)
-                command_list.append('')
+                gcode_list.append('G1 Z' + str(layer_height))
 
             dist = 0
 
-    gcode_list.append('')
-    dist_list.append('')
-    command_list.append([color_OFF])
-
     import os.path
     completeName = os.path.join(save_path, export_txt_file+'_reversePrint.txt')
-
+    print(gcode_list)
     f = open(completeName, 'w')
     f.write('\n\rG91')
     for elem in setpress_list:
         f.write(elem)
     f.write(str('\n\r' + com[0] + '.write(' + str(togglepress()) + ')') ) # turn on material 2)
     for i in range(len(gcode_list)):
-        f.write('\n\r' + str(gcode_list[i]) + str(dist_list[i]))
-        for elem in command_list[i]:
-            f.write('\n\r' + str(elem))
+        f.write('\n\r' + str(gcode_list[i]))
+
     f.write(str('\n\r' + com[0] + '.write(' + str(togglepress()) + ')') ) # turn on material 2)
 
 '''Lattice print prints a lattice structure'''
-def image_2_gcode_CheckerboardCube_latticeprint(image_name, fil_width,checker_size, color_list,setpress_list, color_ON_list, color_OFF_list, gcode_simulate, gcode_simulate_color, export_txt_file, save_path):
+def image_2_gcode_CheckerboardCube_latticeprint(image_name, fil_width,layer_height, checker_size, color_list,setpress_list, color_ON_list, color_OFF_list, gcode_simulate, gcode_simulate_color, export_txt_file, save_path):
     if gcode_simulate == True:
         gcode_color1 = "G0 "
     else:
@@ -445,7 +449,7 @@ def image_2_gcode_CheckerboardCube_latticeprint(image_name, fil_width,checker_si
                 gcode_list.append(gcode + ' ' + short_dist_var + str(short_move_sign * fil_width))
 
             else:
-                gcode_list.append(gcode + ' ' + 'Z' + str(fil_width))
+                gcode_list.append(gcode + ' ' + 'Z' + str(layer_height))
 
 
 
@@ -480,6 +484,7 @@ image_name = 'Checkerboard_20x20pix.png'
 export_txt_file = 'Checkerboard_20x20pix_cube_gcode'
 save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 fil_width = 1  # width of filament/nozzle
+layer_height = 0.7
 checker_size = 4
 segments = ['length', 0.5] # ['type', value], type options: 'length', 'number'
 
@@ -487,7 +492,7 @@ segments = ['length', 0.5] # ['type', value], type options: 'length', 'number'
 com = ["serialPort1", "serialPort2"]
 
 # Define the Pressures
-pressure_range = [24, 34]
+pressure_range = [24, 35]
 valve = 6
 
 ############################################ Define colors ##################################
@@ -517,6 +522,6 @@ output = image_2_gcode_CheckerboardCube_reverseprint(image_name, fil_width, chec
 
 
 ####################################################################### LATTICE PRINT ######################################################################
-output = image_2_gcode_CheckerboardCube_latticeprint(image_name, fil_width, checker_size, color_list, setpress_list,
-                                                     color_ON_list, color_OFF_list, gcode_simulate,
+output = image_2_gcode_CheckerboardCube_latticeprint(image_name, fil_width, layer_height, checker_size, color_list,
+                                                     setpress_list, color_ON_list, color_OFF_list, gcode_simulate,
                                                      gcode_simulate_color, export_txt_file, save_path)
