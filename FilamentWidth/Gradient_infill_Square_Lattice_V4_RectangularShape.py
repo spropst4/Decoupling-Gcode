@@ -228,7 +228,6 @@ def gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length,
             odd_extra = 0
 
         pressure_change_between_midpoints = (pressure_range[1] - pressure_range[0]) / (num_filaments // 2 - even_extra)
-        print(pressure_change_between_midpoints)
 
         for fil in range(num_filaments):
             print(';----new FIL', num_filaments)
@@ -253,9 +252,7 @@ def gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length,
                 mid_point_pressure += pressure_change_between_midpoints
                 pressure_gradient_region -= fil_spacing
 
-            print(even_extra)
-            print(odd_extra)
-            print(pressure_gradient_region)
+
             print(';-------------------', round(mid_point_pressure,2))
             pressure_range_filament = [mid_point_pressure, pressure_range[1]]
 
@@ -328,13 +325,12 @@ if __name__ == '__main__':
     ### Geometric Settings
     fil_spacing = 1
     segment_length = 0.5
-    xy_num_fil = [20, 20] # [x, y]
+    xy_num_fil = [20, 6] # [x, y]
 
     num_layers = 5
     fil_width = 1
     layer_height = 0.65
-    pressure_range = [22, 32]
-    #gradient_square_lattice(fil_spacing, num_filaments, num_layers, fil_width, layer_height, pressure_range)
+    pressure_range = [32, 22] # [center of print, outside edge of print]
 
     ### Pressure box and valve settings
     com = "serialPort1"

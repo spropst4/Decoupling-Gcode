@@ -1,6 +1,8 @@
 '''
 Author: Sarah Propst
 Date: 8/31/23
+
+ONLY Squares with gradient infill
 '''
 # This function creates a gradient infill of a square lattice
 
@@ -226,7 +228,6 @@ def gradient_square_lattice(fil_spacing, num_filaments, num_layers, segment_leng
                 odd_extra = 0
 
 
-
             if (fil + 1) == 1:
                 dist_from_center = (num_filaments // 2) - (even_extra)
                 mid_point_pressure = pressure_range[1]
@@ -316,7 +317,7 @@ def gradient_square_lattice(fil_spacing, num_filaments, num_layers, segment_leng
 if __name__ == '__main__':
     ### File names
     export_file = '230905_GradientInfillV3_5Layers_2mmspacing_segment1mm_20x20_pressure22_32_gcode.txt'
-    save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
+    save_path = ''# 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
     ### Geometric Settings
     fil_spacing = 2
@@ -325,8 +326,7 @@ if __name__ == '__main__':
     num_layers = 5
     fil_width = 1
     layer_height = 0.65
-    pressure_range = [22, 32]
-    #gradient_square_lattice(fil_spacing, num_filaments, num_layers, fil_width, layer_height, pressure_range)
+    pressure_range = [32, 22] # [center of print, outside edge of print]
 
     ### Pressure box and valve settings
     com = "serialPort1"
@@ -354,4 +354,3 @@ if __name__ == '__main__':
     f.write(toggleOFF)
 
     f.close()
-
