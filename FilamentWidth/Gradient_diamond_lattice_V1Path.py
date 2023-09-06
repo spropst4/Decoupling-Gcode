@@ -251,7 +251,7 @@ filament_width = 1
 
 gradient_fraction = 1/3 # i.e. what fraction of filament is decreasing? Must be  <= 1/2
 segments = ['length', .5] # ['type', value], type options: 'length', 'number'
-pressure_range = [22, 32] # [center of print, outside edge of print]
+pressure_range = [22, 32] # [center of strut, nodes]
 z_height = .65
 num_layers = 2
 

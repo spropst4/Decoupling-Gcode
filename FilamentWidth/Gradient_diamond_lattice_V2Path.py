@@ -268,7 +268,7 @@ filament_width = 1
 
 gradient_fraction = 1/2 # how much of the filament is a gradient
 segments = ['length', .5] # ['type', value], type options: 'length', 'number'
-pressure_range = [32, 22] # [center of print, outside edge of print]
+pressure_range = [32, 22] # [center of strut, nodes]
 z_height = .65
 num_layers = 2
 
