@@ -254,24 +254,26 @@ def Gradient_line_segmentation(input_line, gradient_fraction, segments, pressure
 
 
 ### File names
-export_file = '230906_Gradient_diamond_lattice_V2Path_gcode.txt'
-save_path = ''#'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
+export_file = '230907_Gradient_diamond_lattice_V2Path_gcode.txt'
+export_file_NOGRADIENT = '230907_NO_Gradient_diamond_lattice_V2Path_gcode.txt'
+save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
+Z_var = 'D'
 
 ### Geometric Settings
-plates = [False, 2] # [do you want to have solid plates printed at top and bottom?, if so, how many rows? (must be an even number)]
-num_rows = 6
+plates = [False, 1] # [do you want to have solid plates printed at top and bottom?, if so, how many rows? (must be an even number)]
+num_rows = 6 # must be even
 num_zig_units = 5 # number of diagonals per row (use odd number)
 len_zig = [5, 5] # [x, y]
-corner_width = 1.25 # controls the distance between where the corners of the zig zag meet
-filament_width = 1
+corner_width = 0.8 # 0.8 # controls the distance between where the corners of the zig zag meet
+filament_width = 0.45
 
 gradient_fraction = 1/2 # how much of the filament is a gradient
 segments = ['length', .5] # ['type', value], type options: 'length', 'number'
-pressure_range = [32, 22] # [center of strut, nodes]
-z_height = .65
-num_layers = 2
-
+pressure_range = [40, 55] # [center of strut, nodes]
+z_height = .45
+num_layers = round(0.5*((num_rows*len_zig[0])/z_height)) #37
+print(num_layers)
 
 ### Pressure box and valve settings
 com = "serialPort1"
@@ -279,6 +281,7 @@ valve = 6
 
 setpress_start = str('\n\r' + com + '.write(' + str(setpress(pressure_range[1])) + ')') # material 1
 setpress_noGradient = str('\n\r' + com + '.write(' + str(setpress(np.average(pressure_range)) + ')')) # material 1
+plate_press = str('\n\r' + com + '.write(' + str(setpress(np.average(np.min(pressure_range))) + ')')) # material 1
 toggleON = str('\n\r'+com +'.write('  + str(togglepress()) + ')') # turn on material 2
 toggleOFF = toggleON
 
@@ -293,6 +296,7 @@ reverse_line_list = input_line_list[::-1]
 lattice_generate = generate_diamond_lattice(num_rows, num_zig_units, len_zig, corner_width)
 input_line_list = lattice_generate[0]
 x_lengthen_for_fil = lattice_generate[1]
+
 import os.path
 completeName = os.path.join(save_path, export_file)
 f = open(completeName, "w")
@@ -300,7 +304,7 @@ f.write(setpress_start)
 f.write(toggleON)
 f.write(valveON)
 
-f.write('\nG1 X10')
+f.write('\nG1 X5')
 for layer in range(num_layers):
     ## This section adds the plates at bottom of print
     if (layer + 1) % 2 == 0 and plates[0] == True:
@@ -318,7 +322,8 @@ for layer in range(num_layers):
         f.write('\nG1 Z' + str(z_height))
         for repeat_plate in range(plates[1]):
 
-            if (repeat_plate + 1) % 2 == 0:
+
+            if (repeat_plate + 1) % 2 == 0 or plates[1] == 1:
                 f.write('\nG1 X' + str(-len_zig[0] * (num_zig_units - 1)))
             else:
                 f.write('\nG1 X' + str(len_zig[0] * (num_zig_units - 1)))
@@ -345,7 +350,7 @@ for layer in range(num_layers):
             f.write('\nG1 Z' + str(z_height))
             for repeat_plate in range(plates[1]):
 
-                if (repeat_plate+1)%2 == 0:# even
+                if (repeat_plate+1)%2 == 0 or plates[1] == 1:# even
                     f.write('\nG1 X' + str(len_zig[0]*(num_zig_units - 1)))
                 else:
                     f.write('\nG1 X' + str(-len_zig[0]*(num_zig_units - 1)))
@@ -354,13 +359,84 @@ for layer in range(num_layers):
 
     # if (layer+1) != num_layers and (layer+1)%2 != 0:
     #     f.write('\nG1 Z'+str(z_height))
-
-    if ( (layer+1) != num_layers and (layer+1)%2 == 0 and plates[0]==True) or (plates[0] == False and (layer+1) != num_layers) :
+    print(layer+1)
+    if ((layer+1) != num_layers and (layer+1)%2 == 0 and plates[0] == True) or (plates[0] == False and (layer+1) != num_layers) :
         #f.write('\nG1 X' + str(x_lengthen_for_fil)+' Z'+str(z_height))
         f.write('\nG1 Z' + str(z_height))
 
-f.write('\nG1 X-10')
+#f.write('\nG1 X-5')
 f.write(valveOFF)
 f.write(toggleOFF)
 
 f.close()
+
+####################################################
+
+import os.path
+completeName = os.path.join(save_path, export_file_NOGRADIENT)
+f = open(completeName, "w")
+f.write(setpress_noGradient)
+f.write(toggleON)
+f.write(valveON)
+
+f.write('\nG1 X5')
+for layer in range(num_layers):
+
+    ## This section adds the plates at bottom of print
+    if (layer + 1) % 2 != 0 and plates[0] == True:
+
+        #f.write('\nG1 X' + str(x_lengthen_for_fil))
+        for repeat_plate in range(plates[1]):
+            f.write('\nG1 Y' + str(-filament_width))
+
+            if (repeat_plate + 1) % 2 != 0: # odd
+                f.write('\nG1 X' + str(len_zig[0] * (num_zig_units - 1)))
+            else:
+                f.write('\nG1 X' + str(-len_zig[0] * (num_zig_units - 1)))
+        f.write('\nG1 ' + Z_var + str(z_height))
+        for repeat_plate in range(plates[1]):
+            if (repeat_plate + 1) % 2 == 0 or plates[1] == 1:
+                f.write('\nG1 X' + str(-len_zig[0] * (num_zig_units - 1)))
+            else:
+                f.write('\nG1 X' + str(len_zig[0] * (num_zig_units - 1)))
+
+            f.write('\nG1 Y' + str(filament_width))
+
+
+    for i in range(len(input_line_list)):
+        input_line = input_line_list[i]
+        f.write('\nG1 X' + str(input_line[0]) + ' Y' + str(input_line[1]))
+
+        ### This section adds the plates at top of print
+        if (layer + 1)%2 != 0 and (i+1) == (num_rows * num_zig_units) - (num_zig_units - 1) and plates[0] == True: # even layers only
+
+            f.write('\nG1 ' + Z_var + str(-z_height))
+            for repeat_plate in range(plates[1]):
+                f.write('\nG1 Y' + str(filament_width))
+                if (repeat_plate+1)%2 != 0: # odd
+                    f.write('\nG1 X' + str(-len_zig[0]*(num_zig_units - 1)))
+                else:
+                    f.write('\nG1 X' + str(len_zig[0]*(num_zig_units - 1)))
+            f.write('\nG1 ' + Z_var + str(z_height))
+            for repeat_plate in range(plates[1]):
+
+                if (repeat_plate+1)%2 == 0 or plates[1] == 1:# even
+                    f.write('\nG1 X' + str(len_zig[0]*(num_zig_units - 1)))
+                else:
+                    f.write('\nG1 X' + str(-len_zig[0]*(num_zig_units - 1)))
+
+                f.write('\nG1 Y' + str(-filament_width))
+
+
+    if ((layer+1) != num_layers and (layer+1)%2 == 0 and plates[0] == True) or (plates[0] == False and (layer+1) != num_layers) :
+        #f.write('\nG1 X' + str(x_lengthen_for_fil)+' Z'+str(z_height))
+        f.write('\nG1 ' + Z_var + str(z_height))
+
+#f.write('\nG1 X-5')
+f.write(valveOFF)
+f.write(toggleOFF)
+
+f.close()
+
+
+
