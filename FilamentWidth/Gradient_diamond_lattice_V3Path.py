@@ -128,7 +128,7 @@ def generate_diamond_lattice(num_rows, num_zig_units, len_zig, corner_width):
     for row in range(num_rows):
         if (row+1)%2 != 0: # odd points
             if (row+1) == 1:
-                distance_list.append([0, -2*(y_zig)])
+                distance_list.append([0, -2*(y_zig) - corner_width])
             else:
                 distance_list.append([0, -2*(y_zig + corner_width)])
 
@@ -256,22 +256,22 @@ def Gradient_line_segmentation(input_line, gradient_fraction, segments, pressure
 
 
 ### File names
-export_file = '230907_Gradient_diamond_lattice_V3Path_gcode.txt'
+export_file = '230908_Gradient_diamond_lattice_V3Path_forNOGRADIENT_gcode.txt'
 save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
 ### Geometric Settings
-plates = [True, 1] # [do you want to have solid plates printed at top and bottom?, if so, how many rows? (must be an even number)]
+plates = [True, 2] # [do you want to have solid plates printed at top and bottom?, if so, how many rows? (must be an even number)]
 num_rows = 6 #use even number
 num_zig_units = 6 # number of diagonals per row (use even number)
-len_zig = [4, 4] # [x, y]
-corner_width = 0.3 # controls the distance between where the corners of the zig zag meet
-filament_width = 0.8
+len_zig = [5, 5] # [x, y]
+corner_width = 0#0.3 # controls the distance between where the corners of the zig zag meet
+filament_width = 0.55
 
 gradient_fraction = 1/2 # i.e. what fraction of filament is decreasing? Must be  <= 1/2
 segments = ['length', .5] # ['type', value], type options: 'length', 'number'
-pressure_range = [20, 35] # [center of strut, nodes]
+pressure_range = [40, 55] # [center of strut, nodes]
 z_height = .5
-num_layers = round((num_zig_units*len_zig[0])/z_height)#37
+num_layers = round(10/z_height)#round((num_zig_units*len_zig[0])/z_height)#37
 print(num_layers)
 
 ### Pressure box and valve settings

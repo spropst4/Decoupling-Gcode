@@ -1,6 +1,6 @@
 '''
 Author: Sarah Propst
-Date: 9/6/23
+Date: 9/7/23
 
 Can create rectangular structures with square gradient infill
 '''
@@ -125,7 +125,7 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, mid_point_p
         even_extra = 1
 
 
-    pressure_incr = (pressure_range[1] - pressure_range[0]) / (num_segments//2)
+    pressure_incr = (pressure_range[1] - pressure_range[0]) / (num_segments//2 - even_extra)
 
     distance_count = 0
     pressure = pressure_range[1]
@@ -137,10 +137,30 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, mid_point_p
 
     for i in range(num_segments):
         pressure_list.append(mid_point_pressure)
-        valve_list.append([valve_toggleOFF, valve_toggleON])
+        valve_list.append(['\n', '\n'])
 
     pressure = pressure_range[1]
-    if pressure_incr <= 0:
+    # if pressure_incr <= 0:
+    #     for i in range(num_segments):
+    #         if i > 0:
+    #             pressure -= pressure_incr
+    #         if pressure <= mid_point_pressure:
+    #             pressure_list[i] = pressure
+    #             valve_list[i] = [valveOFF, valveON]
+    #             pressure_list[-(i + 1)] = pressure
+    #elif pressure_incr >= 0:
+
+    if pressure_range[1] > pressure_range[0]:
+        for i in range(num_segments):
+            if i > 0:
+                pressure -= pressure_incr
+            if pressure >= mid_point_pressure:
+                pressure_list[i] = pressure
+                valve_list[i] = [valveOFF, valveON]
+                pressure_list[-(i + 1)] = pressure
+            else:
+                break
+    elif pressure_range[1] < pressure_range[0]:
         for i in range(num_segments):
             if i > 0:
                 pressure -= pressure_incr
@@ -148,23 +168,32 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, mid_point_p
                 pressure_list[i] = pressure
                 valve_list[i] = [valveOFF, valveON]
                 pressure_list[-(i + 1)] = pressure
-    elif pressure_incr >= 0:
-        if i > 0:
-            pressure -= pressure_incr
-        if pressure >= mid_point_pressure:
-            pressure_list[i] = pressure
-            valve_list[i] = [valveOFF, valveON]
-            pressure_list[-(i + 1)] = pressure
+            else:
+                break
+
+
 
     if len(input_dist) == 1: # horizontal or vertical lines
         for i in range(num_segments):
             sign = input_dist[0] / abs(input_dist[0])
             distance_count += segment_len
 
-            pressure = round(pressure_list[i], 2)
-            f.write(str(valve_list[i][0]))
-            f.write(str('\n\r' + com + '.write(' + str(setpress(pressure)) + ')'))
-            f.write(str(valve_list[i][1]))
+            pressure = round(pressure_list[i], 1)#round(pressure_list[i]*2)/2 # rounds to neares .5
+
+
+
+            if i > 0 and pressure_list[i] < pressure_list[i-1]:
+                f.write(str(valve_list[i][0]))
+                f.write(str('\n\r' + com + '.write(' + str(setpress(pressure)) + ')'))
+                f.write(str(valve_list[i][1]))
+
+            elif i > 0 and pressure_list[i] == pressure_list[i-1]:
+                f.write('\n')
+
+            elif i == 0 or pressure_list[i] > pressure_list[i-1]:
+                f.write(str('\n\r' + com + '.write(' + str(setpress(pressure)) + ')'))
+
+
 
             print('Pressure = ', pressure)
 
@@ -176,7 +205,7 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, mid_point_p
         #print(pressure_list)
 
 
-def gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length, layer_height, pressure_range, valveON, valveOFF,):
+def gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length, fil_width, layer_height, pressure_range, valveON, valveOFF,):
     distance_list = []
     var_list = []
     x_num_fil = xy_num_fil[0]
@@ -187,7 +216,7 @@ def gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length,
             length = ((x_num_fil-1)*fil_spacing)
         else:
             num_filaments = x_num_fil
-            length = ((y_num_fil - 1) * fil_spacing)
+            length = ((y_num_fil -1) * fil_spacing)
 
         even_extra = 0
         odd_extra = 1
@@ -287,20 +316,20 @@ def gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length,
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     ### File names
-    export_file = '230907_GradientInfillV4_10_25psi_gcode.txt'
+    export_file = '230908_GradientInfillV5_gcode.txt'
     save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
     ### Geometric Settings
-    fil_spacing = 1
-    segment_length = 0.5 # for gradient
-    xy_num_fil = [int(140/fil_spacing), int(8/fil_spacing)] # [x, y] or [lenght, width] number of filaments in these directions
+    fil_spacing = 1.5
+    segment_length = 1  # for gradient
+    xy_num_fil = [int(140 / fil_spacing),
+                  int(10 / fil_spacing)]  # [x, y] or [lenght, width] number of filaments in these directions
 
+    fil_width = 0.45
+    layer_height = 0.4
+    num_layers = int(10/layer_height)
 
-    fil_width = 1
-    layer_height = 0.5
-    num_layers = 2 # int(16/layer_height)
-
-    pressure_range = [50,30] # [center of print, outside edge of print]
+    pressure_range = [50, 70]  # [center of print, outside edge of print]
 
     ### Pressure box and valve settings
     com = "serialPort1"
@@ -321,7 +350,7 @@ if __name__ == '__main__':
     f.write(toggleON)
     f.write(valveON)
 
-    gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length, layer_height, pressure_range, valveON, valveOFF,)
+    gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length, fil_width, layer_height, pressure_range, valveON, valveOFF,)
 
     f.write(valveOFF)
     f.write(toggleOFF)

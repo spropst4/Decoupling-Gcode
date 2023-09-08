@@ -122,16 +122,16 @@ def generate_diamond_lattice(num_rows, num_zig_units, len_zig, corner_width):
                 slope = len_zig[1] / len_zig[0]
                 x_lengthen_for_fil = corner_width / (2 * np.sqrt(1 + slope ** 2))
                 y_lengthen_for_fil = slope * x_lengthen_for_fil
-                distance_list.append([-(x_zig + x_lengthen_for_fil), -(y_zig + y_lengthen_for_fil)])
+                distance_list.append([-(x_zig + 0.5*x_lengthen_for_fil), -(y_zig + y_lengthen_for_fil)])
+
             else:
                 distance_list.append([-(x_zig), -(y_zig + y_lengthen_for_fil)])
-
+                print('---here', x_zig )
         else:
             if (rows + 1) == num_rows:
-                distance_list.append([(x_zig + x_lengthen_for_fil), -(y_zig + y_lengthen_for_fil)])
+                distance_list.append([(x_zig + 0.5*x_lengthen_for_fil), -(y_zig + y_lengthen_for_fil)])
             else:
                 distance_list.append([(x_zig), -(y_zig + y_lengthen_for_fil)])
-
 
     for elem in distance_list:
         print('G1 X' + str(elem[0]) + ' Y' + str(elem[1]))
@@ -254,25 +254,25 @@ def Gradient_line_segmentation(input_line, gradient_fraction, segments, pressure
 
 
 ### File names
-export_file = '230907_Gradient_diamond_lattice_V2Path_gcode.txt'
-export_file_NOGRADIENT = '230907_NO_Gradient_diamond_lattice_V2Path_gcode.txt'
+export_file = '230908_Gradient_diamond_lattice_V2Path_gcode.txt'
+export_file_NOGRADIENT = '230908_NO_Gradient_diamond_lattice_V2Path_gcode.txt'
 save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
 Z_var = 'D'
 
 ### Geometric Settings
-plates = [False, 1] # [do you want to have solid plates printed at top and bottom?, if so, how many rows? (must be an even number)]
+plates = [True,2] # [do you want to have solid plates printed at top and bottom?, if so, how many rows? (must be an even number)]
 num_rows = 6 # must be even
 num_zig_units = 5 # number of diagonals per row (use odd number)
 len_zig = [5, 5] # [x, y]
 corner_width = 0.8 # 0.8 # controls the distance between where the corners of the zig zag meet
-filament_width = 0.45
+filament_width = 0.55
 
 gradient_fraction = 1/2 # how much of the filament is a gradient
-segments = ['length', .5] # ['type', value], type options: 'length', 'number'
-pressure_range = [40, 55] # [center of strut, nodes]
-z_height = .45
-num_layers = round(0.5*((num_rows*len_zig[0])/z_height)) #37
+segments = ['length', 0.5] # ['type', value], type options: 'length', 'number'
+pressure_range = [30, 45] # [center of strut, nodes]
+z_height = .5
+num_layers =  round(10/z_height) #round(0.5*((num_rows*len_zig[0])/z_height)) #37
 print(num_layers)
 
 ### Pressure box and valve settings
@@ -383,7 +383,7 @@ f.write('\nG1 X5')
 for layer in range(num_layers):
 
     ## This section adds the plates at bottom of print
-    if (layer + 1) % 2 != 0 and plates[0] == True:
+    if (layer + 1) % 2 == 0 and plates[0] == True:
 
         #f.write('\nG1 X' + str(x_lengthen_for_fil))
         for repeat_plate in range(plates[1]):
@@ -408,7 +408,7 @@ for layer in range(num_layers):
         f.write('\nG1 X' + str(input_line[0]) + ' Y' + str(input_line[1]))
 
         ### This section adds the plates at top of print
-        if (layer + 1)%2 != 0 and (i+1) == (num_rows * num_zig_units) - (num_zig_units - 1) and plates[0] == True: # even layers only
+        if (layer + 1)%2 == 0 and (i+1) == (num_rows * num_zig_units) - (num_zig_units - 1) and plates[0] == True: # even layers only
 
             f.write('\nG1 ' + Z_var + str(-z_height))
             for repeat_plate in range(plates[1]):
