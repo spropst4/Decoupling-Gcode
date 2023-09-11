@@ -11,6 +11,9 @@ def setpress(pressure):
     from codecs import encode
     from textwrap import wrap
 
+
+    pressure = round(pressure, 1)
+
     pressure = str(pressure * 10)
     length = len(pressure)
     while length < 4:
@@ -89,16 +92,23 @@ def togglepress():
     toggle = str("b'\\x05\\x02\\x30\\x34\\x44\\x49\\x20\\x20\\x43\\x46\\x03'")
     return toggle
 def grayscale_value_2_pressure_ratio(grayscale_value, pressure):
-    fraction_white = grayscale_value/255
-    pressure_white = pressure[1][0]*fraction_white
-    pressure_black = pressure[0][0]*(1-fraction_white)
+    full_pressure_white = pressure[1][0]
+    least_pressure_white = pressure[1][1]
+    full_pressure_bl = pressure[0][0]
+    least_pressure_bl = pressure[0][1]
 
-    if pressure_white <= pressure[1][1]:
-        pressure_white += pressure[1][1]
+    fraction_white = grayscale_value/255  # if closer to 1, value is closer to white
+    pressure_white = (full_pressure_white-least_pressure_white)*fraction_white + least_pressure_white
 
-    if pressure_black <= pressure[0][1]:
+    # pressure_white += least_pressure_white
+    #
+    # pressure_black = (full_pressure_bl+least_pressure_bl)*(1-fraction_white)
+    # pressure_black += least_pressure_bl
 
-        pressure_black += pressure[0][1]
+    print('-------------------')
+    pressure_black = (full_pressure_white+least_pressure_white) - pressure_white
+
+    #print([pressure_black, pressure_white])
 
     return [pressure_black, pressure_white]
 
@@ -137,9 +147,10 @@ def image_2_gcode_2ColorGradient(image_name, y_dist, offset, pressure, com_list_
     gcode = 'G1 X'
     gcode_list = []
     for press in range(len(prev_pressures)):
-        pressure_val = prev_pressures[press]
+        pressure_val = round(prev_pressures[press], 1)
         com_val = com_list_gradient[press]
-        gcode_list.append(pressurebox_str_command(com_val, pressure_val) + ' ;Pressure = '+str(pressure_val))
+        gcode_list.append(pressurebox_str_command(com_val, pressure_val))# + ' ;Pressure = '+str(pressure_val))
+        #print(com_val, pressure_val)
 
     for elem in color_ON_list:
         gcode_list.append(elem)
@@ -172,22 +183,23 @@ def image_2_gcode_2ColorGradient(image_name, y_dist, offset, pressure, com_list_
             pixel = pixels_to_print[pix]
 
             pressure_values = grayscale_value_2_pressure_ratio(pixel, pressure)
-            #print(pixel, pressure_values)
+            print(pixel, pressure_values)
 
             if prev_pixel != pixel:
                 if dist != 0:
                     gcode_list.append(gcode + dist_sign + str(dist))
 
                 for press in range(len(pressure_values)):
-                    pressure_val = pressure_values[press]
+                    pressure_val = round(pressure_values[press],1)
                     com_val = com_list_gradient[press]
+                    #gcode_list.append(pressurebox_str_command(com_val, pressure_val))
                     if pressure_val < prev_pressures[press]:
                         gcode_list.append(color_OFF_list[press])
-                        gcode_list.append(pressurebox_str_command(com_val, pressure_val) + ' ;Pressure = ' + str(pressure_val))
+                        gcode_list.append(pressurebox_str_command(com_val, pressure_val)) #+ ' ;Pressure = ' + str(pressure_val))
                         gcode_list.append(color_ON_list[press])
                     else:
-                        gcode_list.append(pressurebox_str_command(com_val, pressure_val) + ' ;Pressure = ' + str(pressure_val))
-
+                        gcode_list.append(pressurebox_str_command(com_val, pressure_val)) #+ ' ;Pressure = ' + str(pressure_val))
+                    print(com_val, pressure_val)
                 dist = 0
 
                 gcode = 'G1 X'
@@ -333,10 +345,11 @@ def image_2_gcode_2ColorGradient_wSolidImg(image_name, y_dist, offset, com_list_
     return gcode_list
 
 ############################################### 2+ Colors function ################################
-image_name = 'blue_jay_75x75pixs_3colors.png'
+image_name = '230911_GradientPixelDiamond_50x50.png'#'230911_GradientPixelDiamond_50x50.png'
 gcode_export = image_name.replace('.png', '_gcode.txt')
+save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
-OnlyGradient = True
+OnlyGradient = True # True if there is not a solid black image also in the print (like for the sunset)
 
 y_dist = 1  # width of filament/nozzle
 offset = 0
@@ -348,9 +361,9 @@ com_solid = "serialPort3"
 valve_gradient_black = 6
 valve_gradient_white = 7
 
-pressure_gradient_black = [23, 5]   # [100% value, 0% value]
-pressure_gradient_white = [23, 5]   # [100% value, 0% value]
-pressure_solid = 23
+pressure_gradient_black = [27, 16]   # [100% value, 0% value]
+pressure_gradient_white = [27, 16]   # [100% value, 0% value]
+#pressure_solid = 23
 
 color_code = 'Grayscale' # 'Grayscale', 'RGB'
 if color_code == 'RGB':
@@ -400,20 +413,24 @@ if OnlyGradient == True:
     gcode_list = image_2_gcode_2ColorGradient(image_name, y_dist, offset, pressure, com_list_gradient, color_ON_list,color_OFF_list, gcode_simulate, gcode_simulate_color, color_code)
 else:
     gcode_list = image_2_gcode_2ColorGradient_wSolidImg(image_name, y_dist, offset, com_list_gradient,color_list_solid, com_solid_list, color_ON_list,color_OFF_list, gcode_simulate, gcode_simulate_color,color_code)
+import os.path
+completeName = os.path.join(save_path, gcode_export)
 
-with open(gcode_export,'w') as f:
+with open(completeName,'w') as f:
     for i in range(len(setpress_list)):
-        f.write('\n' +setpress_list[i])
+        #f.write('\n' + setpress_list[i])
 
-        f.write('\n' + pressure_box_ON_list[i])
+        f.write(pressure_box_ON_list[i])
 
-    f.write('\nG91\r')
+    #f.write('\nG91\r')
 
     for elem in gcode_list:
         f.write('\n'+elem )
 
-    f.write('\n' + pressure_box_ON_list[i])
+    f.write(pressure_box_ON_list[i])
 
+    for elem in pressure_box_OFF_list:
+        f.write(elem)
 
 f.close()
 
