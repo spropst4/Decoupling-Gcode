@@ -2,6 +2,9 @@
 9/4/23 - Sarah Propst
 Purpose: convert image to gcode print path (use valves for toggling)
 
+Images will be printed in 'grayscale' or combination of 2 Materials
+Current grayscale->pressure ratio assumes pressure requirments for both materials is the same
+
 """
 import cv2
 import numpy as np
@@ -94,21 +97,13 @@ def togglepress():
 def grayscale_value_2_pressure_ratio(grayscale_value, pressure):
     full_pressure_white = pressure[1][0]
     least_pressure_white = pressure[1][1]
-    full_pressure_bl = pressure[0][0]
-    least_pressure_bl = pressure[0][1]
 
     fraction_white = grayscale_value/255  # if closer to 1, value is closer to white
     pressure_white = (full_pressure_white-least_pressure_white)*fraction_white + least_pressure_white
 
-    # pressure_white += least_pressure_white
-    #
-    # pressure_black = (full_pressure_bl+least_pressure_bl)*(1-fraction_white)
-    # pressure_black += least_pressure_bl
-
     print('-------------------')
     pressure_black = (full_pressure_white+least_pressure_white) - pressure_white
 
-    #print([pressure_black, pressure_white])
 
     return [pressure_black, pressure_white]
 
