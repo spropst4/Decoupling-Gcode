@@ -80,9 +80,10 @@ G1 X-2.5 Y-5
 
 '--- Section 3
 
+G0 X-2.5 Y5
+
 {gap}
-G0 Y5
-G0 X2.5
+G0 X5
 
 G1 X10 -{offset}
 
@@ -97,9 +98,9 @@ G1 X10 +{offset}
 
 '--- Section 4
 
-G0 X2.5
-G0 Y5
+G0 X5
 {gap}
+G0 X-2.5 Y5
 
 G1 X-2.5 +{offset_x} Y-5 +{offset_y}
 

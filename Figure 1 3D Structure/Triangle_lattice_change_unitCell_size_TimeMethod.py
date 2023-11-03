@@ -6,11 +6,15 @@ def setpress(pressure):
     from codecs import encode
     from textwrap import wrap
 
-    pressure = str(int(pressure * 10))
+
+    pressure = round(pressure, 1)
+
+    pressure = str(pressure * 10)
     length = len(pressure)
     while length < 4:
         pressure = "0" + pressure
         length = len(pressure)
+
     commandc = bytes(('08PS  ' + pressure), "utf-8")
 
     # FIND CHECKSUM
@@ -24,7 +28,7 @@ def setpress(pressure):
     ####format for arduino#####
     format_command = str(hexcommand)
     format_command = '\\x'.join(format_command[i:i + 2] for i in range(0, len(format_command), 2))
-    format_command = '\\x'+format_command
+    format_command = '\\x' + format_command
     ##########################
 
     hexcommand = wrap(hexcommand,
@@ -74,17 +78,34 @@ def setpress(pressure):
 
     # SENDING OUT THE COMMAND
     ##format for arduino####
-    finalcommand = ('\\x05\\x02') + format_command + format_checksum + str('\\x03')
+    finalcommand = ("\\x05\\x02") + format_command + format_checksum + str("\\x03")
     finalcommand = finalcommand.strip('\r').strip('\n')
-    finalcommand = '"' + finalcommand + '"'
+    finalcommand = "b'" + finalcommand + "'"
     return finalcommand
 def togglepress():
     # IMPORTS
-    import serial
-    from codecs import encode
-    from textwrap import wrap
-    toggle = str('"\\x05\\x02\\x30\\x34\\x44\\x49\\x20\\x20\\x43\\x46\\x03"')
+    toggle = str("b'\\x05\\x02\\x30\\x34\\x44\\x49\\x20\\x20\\x43\\x46\\x03'")
     return toggle
+def grayscale_value_2_pressure_ratio(grayscale_value, pressure):
+    full_pressure_white = pressure[1][0]
+    least_pressure_white = pressure[1][1]
+
+    fraction_white = grayscale_value/255  # if closer to 1, value is closer to white
+    pressure_white = (full_pressure_white-least_pressure_white)*fraction_white + least_pressure_white
+
+    print('-------------------')
+    pressure_black = (full_pressure_white+least_pressure_white) - pressure_white
+
+
+    return [pressure_black, pressure_white]
+
+def pressurebox_str_command(com, pressure):
+    return str('\n\r' + com + '.write(' + str(setpress(pressure)) + ')')
+def pressurebox_toggle_str_command(com):
+    return str('\n\r' + com + '.write(' + str(togglepress()) + ')')
+
+def valve_str_command(valve, command):
+    return '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', ' +str(command) + ')'
 
 ################# For updating size of unit cell
 def find_distances(myline, ch1, ch2, hex_side_length, direction, offset):
@@ -158,31 +179,30 @@ def open_and_edit_gcode(gcode_txt, toggle_ON_list, toggle_OFF_list, hex_side_len
         return gcode_list, gcode_list_reverse
 
 ################# For writing and exporting gcode
-def write_and_export_gcode(export_gcode_txt, type_open, gcode_list_1repeat_unit, gcode_list_Section1_Only, Z_var,setpress_list, toggle_ON_list, toggle_OFF_list):
+def write_and_export_gcode(export_gcode_txt, gcode_list_1repeat_unit, gcode_list_Section1_Only, Z_var,setpress_list, valveON_list, valveOFF_list):
     odd_layers_1repeat_unit = gcode_list_1repeat_unit[0]
     even_layers_1repeat_unit = gcode_list_1repeat_unit[1]
 
     odd_layers_Section1_Only = gcode_list_Section1_Only[0]
     even_layers_Section1_Only = gcode_list_Section1_Only[1]
 
-    f = open(export_gcode_txt, type_open)
-    # for elem in setpress_list:
-    #     f.write(elem)
-    f.write('\nG91')
-    f.write(toggle_ON_list[0])
+
+
+    f.write(valveON_list[0])
 
     for repeat in range(3):
         f.write("\nG1 X3")
-        f.write(toggle_ON_list[1])
-        f.write(toggle_OFF_list[0])
+        f.write(valveON_list[1])
+        f.write(valveOFF_list[0])
         f.write("\nG1 X3")
-        f.write(toggle_ON_list[0])
-        f.write(toggle_OFF_list[1])
+        f.write(valveON_list[0])
+        f.write(valveOFF_list[1])
 
-    f.write('\nG1 X' + str(2*offset))
+
+    f.write('\nG1 X' + str(3))
 
     for layer in range(num_layers):
-        f.write("\n'layer " + str(layer + 1))
+        #f.write("\n'layer " + str(layer + 1))
 
         if (layer + 1) % 2 != 0:
             for repeat in range(number_of_repeat_units):
@@ -201,44 +221,13 @@ def write_and_export_gcode(export_gcode_txt, type_open, gcode_list_1repeat_unit,
 
         f.write('\nG1 ' + Z_var + str(layer_height))
 
-    f.write(toggle_OFF_list[0])
-def intro(intro_gcode, export_gcode_txt, Z_var, ramprate, feed, Z_start, pressure):
-    with open(intro_gcode, "r") as g:
-        with open(export_gcode_txt, 'w') as f:
-            for line in g:
-                line = line.replace('{file_name1}', file_name[0]).replace('{file_name2}', file_name[1]).replace('{Z_var}', Z_var).replace('{ramprate}', str(ramprate)).replace('{feed}', str(feed)).replace('{Z_start}', str(Z_start))
-                line = line.replace('{com1}', str(com[0])).replace('{com2}', str(com[1]))
-                line = line.replace('{pressure1}', str(pressure[0])).replace('{pressure2}', str(pressure[1]))
-                f.write(line)
-        g.close()
-
-    return f
-    f.close()
-def ending(ending_gcode, export_gcode_txt, Z_var):
-    with open(ending_gcode, "r") as g:
-        with open(export_gcode_txt, 'a') as f:
-            f.write('\n\r')
-            for line in g:
-                line = line.replace('{file_name1}', file_name[0]).replace('{file_name2}', file_name[1]).replace(
-                    '{Z_var}', Z_var).replace('{ramprate}', str(ramprate)).replace('{feed}', str(feed)).replace(
-                    '{Z_start}', str(Z_start))
-                line = line.replace('{com1}', str(com[0])).replace('{com2}', str(com[1]))
-                f.write(line)
-
-        g.close()
-
-    return f
-    f.close()
+    f.write(valveOFF_list[0])
 
 ######################################### Import/Export
-gcode_txt_1RepeatUnit = 'Triangle_lattice_honeycomb_1RepeatUnit_Offset_gap_V3.txt'
-gcode_txt_Section1_Only = 'Triangle_lattice_honeycomb_Section1_Only_Offset_gap.txt'
-export_gcode_txt = 'Aerotech_Triangle_lattice_honeycomb.txt'
-
-intro_flag = True       # False             # mark True if you want to add an intro; mark False if you don't want to add an intro
-ending_flag = True      # False             # mark True if you want to add an ending; mark False if you don't want to add an ending
-intro_gcode = "Spropst_aerotech_intro.txt"
-ending_gcode = "Spropst_aerotech_end.txt"
+gcode_txt_1RepeatUnit = 'Triangle_lattice_honeycomb_1RepeatUnit_noOffset_V3.txt'
+gcode_txt_Section1_Only = 'Triangle_lattice_honeycomb_Section1_Only_noOffset_gap.txt'
+export_gcode_txt = '231011_Triangle_lattice_honeycomb_gcode.txt'
+save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
 visualize = False
 
@@ -251,58 +240,48 @@ filament_width = 1
 
 gap_size = 0.5*filament_width # this leaves a small space between each row so that they don't overlap and smear
 
-offset = 3.2
-
+offset = 0
+Z_var = 'Z'
 ######################################### Pressure Box Settings
 pressure = [34, 34]
-com = [5, 6]
-
-######################################### Printer Settings
-feed = 15  # mm/sec
-ramprate = 200 # mm/s/s
-
-Z_var = "C"
-Z_start = -150 + layer_height
+com = ['serialPort1', 'serialPort2']
+valve = [6, 7]
 
 ######################################## Pressure Box Commands
+setpress_list = []
+valve_ON_list = []
+valve_OFF_list = []
+toggleON_list = []
+for i in range(len(com)):
+    setpress_list.append(pressurebox_str_command(com[i], pressure[i]))
+    valve_ON_list.append(valve_str_command(valve[i], True))
+    valve_OFF_list.append(valve_str_command(valve[i], False))
+    toggleON_list.append(pressurebox_toggle_str_command(com[i]))
 
-file_name = ["$hFile1", "$hFile2"]
-
-setpress1 =str('\n\rFILEWRITE ' + str(file_name[0]) + ", "+ str(setpress(pressure[0])) + " 'M1: P = " + str(pressure[0])+ " psi") # material 1
-setpress2 = str('\n\rFILEWRITE ' + str(file_name[1]) + ", "+ str(setpress(pressure[1])) + " 'M2: P = " + str(pressure[0])+ " psi")# material 2
-
-toggle_ON_1 = str('\n\rFILEWRITE ' + str(file_name[0]) + ", "+ str(togglepress())+ " 'M1 ON") # turn on material 1
-toggle_OFF_1 = str('\n\rFILEWRITE ' + str(file_name[0]) + ", "+ str(togglepress())+ " 'M1 OFF")
-
-toggle_ON_2 = str('\n\rFILEWRITE ' + str(file_name[1]) + ", "+ str(togglepress())+ " 'M2 ON")
-toggle_OFF_2 = str('\n\rFILEWRITE ' + str(file_name[1]) + ", "+ str(togglepress())+ " 'M2 OFF")
-
-
-setpress_list = [setpress1, setpress2]
-toggle_ON_list = [toggle_ON_1, toggle_ON_2]
-toggle_OFF_list = [toggle_OFF_1, toggle_OFF_2]
-
+toggleOFF_list = toggleON_list
 ######################################## Write G-Code
-gcode_list_1repeat_unit = open_and_edit_gcode(gcode_txt_1RepeatUnit, toggle_ON_list, toggle_OFF_list, hex_side_length,
+gcode_list_1repeat_unit = open_and_edit_gcode(gcode_txt_1RepeatUnit, valve_ON_list, valve_OFF_list, hex_side_length,
                                               offset, filament_width, gap_size, visualize)
-gcode_list_Section1_Only = open_and_edit_gcode(gcode_txt_Section1_Only, toggle_ON_list, toggle_OFF_list,
+gcode_list_Section1_Only = open_and_edit_gcode(gcode_txt_Section1_Only, valve_ON_list, valve_OFF_list,
                                                hex_side_length, offset, filament_width, gap_size, visualize)
 
 ###################################### Export G-Code
 
-### Append Intro
-if intro_flag == True:
-    intro_export = intro(intro_gcode, export_gcode_txt, Z_var, ramprate, feed, Z_start, pressure)
-    type_open = "a"
-else:
-    type_open = "w"
+import os.path
 
-### Body
-export = write_and_export_gcode(export_gcode_txt, type_open, gcode_list_1repeat_unit, gcode_list_Section1_Only, Z_var,
-                                setpress_list, toggle_ON_list, toggle_OFF_list)
+completeName = os.path.join(save_path, export_gcode_txt)
+f = open(completeName, 'w')
 
-### Ending
-if ending_flag == True:
-    ending_export = ending(ending_gcode, export_gcode_txt, Z_var)
+for i in range(len(setpress_list)):
+    f.write(setpress_list[i])
+    f.write(toggleON_list[i])
 
+export = write_and_export_gcode(export_gcode_txt, gcode_list_1repeat_unit, gcode_list_Section1_Only, Z_var,setpress_list, valve_ON_list, valve_OFF_list)
+
+for elem in valve_OFF_list:
+    f.write(elem)
+
+
+for elem in toggleOFF_list:
+    f.write(elem)
 
