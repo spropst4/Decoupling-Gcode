@@ -100,7 +100,7 @@ apply_offset = True
 offset = 4 # 1.4  # for F=15 #2.5mm for F=25
 
 ## Exporting Information ########################################################################################################
-export_gcode_txt = "231110_Automation1_Checkerboard_SwitchingNozzle_gcode.txt"    # export gcode as txt file (i.e., must include .txt)
+export_gcode_txt = "231110_Automation1_Checkerboard_SwitchingNozzle_GROUPED_gcode.txt"    # export gcode as txt file (i.e., must include .txt)
 
 intro_flag = True       # False             # mark True if you want to add an intro; mark False if you don't want to add an intro
 ending_flag = False      # False             # mark True if you want to add an ending; mark False if you don't want to add an ending
@@ -120,7 +120,7 @@ Z_start = -150 + z
 col = 3
 rows = 1
 
-pressure = [35, 35]
+pressure = [31, 31]
 
 # Feedrate
 feed = 15  # mm/sec
@@ -148,11 +148,11 @@ print("number_lines_to_print (updated so that number of lines per row is a whole
 setpress1 = write_setpress_Automation1([com[0]], [pressure[0]], 0.15)
 setpress2 = write_setpress_Automation1([com[1]], [pressure[1]], 0.15)
 
-toggleON_1 = write_togglepress_Automation1([com[0]], 0.15)
-toggleOFF_1 = write_togglepress_Automation1([com[0]], 0.15)
+toggleON_1 = write_togglepress_Automation1([com[0], com[1]], 0.15)#write_togglepress_Automation1([com[0]], 0.15)
+toggleOFF_1 = ''#write_togglepress_Automation1([com[0]], 0.15)
 
-toggleON_2 = write_togglepress_Automation1([com[1]], 0.15)
-toggleOFF_2 = write_togglepress_Automation1([com[1]], 0.15)
+toggleON_2 = write_togglepress_Automation1([com[1], com[0]], 0.15) #'write_togglepress_Automation1([com[1]], 0.15)
+toggleOFF_2 = ''#write_togglepress_Automation1([com[1]], 0.15)
 
 
 if apply_offset == False:

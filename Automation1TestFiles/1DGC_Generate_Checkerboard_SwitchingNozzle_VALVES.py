@@ -3,11 +3,12 @@ def setpress(pressure):
     from codecs import encode
     from textwrap import wrap
 
-    pressure = str(int(pressure * 10))
+    pressure = str(pressure * 10)
     length = len(pressure)
     while length < 4:
         pressure = "0" + pressure
         length = len(pressure)
+
     commandc = bytes(('08PS  ' + pressure), "utf-8")
 
     # FIND CHECKSUM
@@ -21,7 +22,7 @@ def setpress(pressure):
     ####format for arduino#####
     format_command = str(hexcommand)
     format_command = '\\x'.join(format_command[i:i + 2] for i in range(0, len(format_command), 2))
-    format_command = '\\x'+format_command
+    format_command = '\\x' + format_command
     ##########################
 
     hexcommand = wrap(hexcommand,
@@ -71,23 +72,16 @@ def setpress(pressure):
 
     # SENDING OUT THE COMMAND
     ##format for arduino####
-    finalcommand = ('\\x05\\x02') + format_command + format_checksum + str('\\x03')
+    finalcommand = ("\\x05\\x02") + format_command + format_checksum + str("\\x03")
     finalcommand = finalcommand.strip('\r').strip('\n')
-    finalcommand = '"' + finalcommand + '"'
+    finalcommand = "b'" + finalcommand + "'"
     return finalcommand
 def togglepress():
     # IMPORTS
-    import serial
-    from codecs import encode
-    from textwrap import wrap
-    toggle = str('"\\x05\\x02\\x30\\x34\\x44\\x49\\x20\\x20\\x43\\x46\\x03"')
+    toggle = str("b'\\x05\\x02\\x30\\x34\\x44\\x49\\x20\\x20\\x43\\x46\\x03'")
     return toggle
 
-def write_setpress_Automation1(com, pressure, dwell): # com as list, pressure as list, dwell as real
-    return '\nSocketWriteString($clientSocket, "\\nexecSetPressure(' + str(com) + ', ' + str(pressure) + ')")' #+ '\nDwell(' +str(dwell) + ')'
-
-def write_togglepress_Automation1(com, dwell): # com as list, dwell as real
-    return '\nSocketWriteString($clientSocket, "\\nexecTogglePressure(' + str(com) + ')")' #+ '\nDwell(' +str(dwell) + ')'
+## this version turns on only material 1
 
 ### Are you checking pattern on Qndirty/do you want G0 movements?
 G0_moves = False  # false meanse all moves will be G1
@@ -96,39 +90,30 @@ G0_moves = False  # false meanse all moves will be G1
 y_move_ON = True  # false means you want material to turn off during y-moves
 
 ## Are you applying offsets and initial pause?
-apply_offset = True
-offset = 4 # 1.4  # for F=15 #2.5mm for F=25
+apply_offset = False
+offset = 0  # 1.4  # for F=15 #2.5mm for F=25
 
-## Exporting Information ########################################################################################################
-export_gcode_txt = "231110_Automation1_Checkerboard_SwitchingNozzle_gcode.txt"    # export gcode as txt file (i.e., must include .txt)
+type_test = 'not accel' #options: "accel", 'not accel'
 
-intro_flag = True       # False             # mark True if you want to add an intro; mark False if you don't want to add an intro
-ending_flag = False      # False             # mark True if you want to add an ending; mark False if you don't want to add an ending
-intro_gcode = "SPropst_automation1_intro.txt"
-ending_gcode = "Spropst_aerotech_end.txt"
+##INPUTS#############################################################################################################
+export_gcode_txt = "231110_DGC_Checkerboard_SwitchingNozzle_gcode.txt"
+save_path = ''#'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
-type_test = "not accel"
-
-############# INPUTS ################################
 # Desired XYZ motion
 x = 10
 y = 1 # 1
 z = 1  # 1  # 0.58
-Z_var = "C"
+Z_var = "D"
 Z_start = -150 + z
 
 col = 3
 rows = 1
 
-pressure = [35, 35]
+pressure = [36,36]
+com = ["serialPort1", "serialPort2"]
+valve = [6,7]
 
-# Feedrate
-feed = 15  # mm/sec
-ramprate = 1000 # mm/s/s
 
-com = [9, 10]
-
-## Calculating width, height, number of lines to print, etc. ###
 total_width = col * x
 total_height = rows * x
 number_lines_to_print = round(total_height / y)
@@ -143,36 +128,32 @@ print("lines_per_row (rounded to a whole number) = ", lines_per_row)
 number_lines_to_print = lines_per_row * rows
 print("number_lines_to_print (updated so that number of lines per row is a whole number) = ", number_lines_to_print)
 
+
 ######################################################################################################################
 
-setpress1 = write_setpress_Automation1([com[0]], [pressure[0]], 0.15)
-setpress2 = write_setpress_Automation1([com[1]], [pressure[1]], 0.15)
 
-toggleON_1 = write_togglepress_Automation1([com[0]], 0.15)
-toggleOFF_1 = write_togglepress_Automation1([com[0]], 0.15)
+setpress1 = str('\n\r' + com[0] + '.write(' + str(setpress(pressure[0])) + ')') # material 1
+setpress2 = str('\n\r' + com[1] + '.write(' + str(setpress(pressure[1])) + ')') # material 2
+press1_toggle = str('\n\r' + com[0] + '.write(' + str(togglepress()) + ')') # turn on material 1
+press2_toggle = str('\n\r' + com[1] + '.write(' + str(togglepress()) + ')') # turn on material 1
 
-toggleON_2 = write_togglepress_Automation1([com[1]], 0.15)
-toggleOFF_2 = write_togglepress_Automation1([com[1]], 0.15)
+toggleON_1 = '\n{aux_command}WAGO_ValveCommands(' + str(valve[0]) + ', True)'
+toggleOFF_1 = '\n{aux_command}WAGO_ValveCommands(' + str(valve[0]) + ', False)'
+
+toggleON_2 = '\n{aux_command}WAGO_ValveCommands(' + str(valve[1]) + ', True)'
+toggleOFF_2 = '\n{aux_command}WAGO_ValveCommands(' + str(valve[1]) + ', False)'
+
 
 
 if apply_offset == False:
     offset = 0
 
 ## Defined XYZ (don't change
-# X = " X" + str(x - offset)
-# Y = " Y" + str(y)
-# Z = " " + Z_var + str(z)
-#
-# _X = " X" + str(-x + offset)
-# _Y = " Y" + str(-y)
-# _Z = " " + Z_var + str(-z)
-
-
-X = " X" + str(x)
+X = " X" + str(x - offset)
 Y = " Y" + str(y)
 Z = " " + Z_var + str(z)
 
-_X = " X" + str(-x)
+_X = " X" + str(-x + offset)
 _Y = " Y" + str(-y)
 _Z = " " + Z_var + str(-z)
 
@@ -181,70 +162,44 @@ move_neg_x = "\nG1" + _X
 move_pos_y = "\n\rG1" + Y
 move_neg_y = "\n\rG1" + _Y
 
-move_pos_x_offset = "\nG1 X" + str(x-offset)
-move_neg_x_offset = "\nG1 X" + str(-x + offset)
-
-move_pos_x_end_line = "\nG1 X" + str(x+offset)
-move_neg_x_end_line = "\nG1 X" + str(-x - offset)
-
-move_pos_y_offset =  "\nG1 Y" + str(y-offset)
-move_pos_y_remain = '\nG1 Y' + str(offset)
-if apply_offset == False:
-    move_pos_y_remain = ''
-
-
+move_pos_x_offset = "\nG1 X" + str(offset)
+move_neg_x_offset = "\nG1 X" + str(-offset)
 
 row_count = 1
 material_ON = 1
 
+import os.path
+completeName = os.path.join(save_path, export_gcode_txt)
 
-## Writes aerotech intro to final file (only runs if you flagged it as true)
-def intro(intro_gcode, export_gcode_txt, Z_var, ramprate, feed, Z_start):
-    with open(intro_gcode, "r") as g:
-        with open(export_gcode_txt, 'w') as f:
-            for line in g:
-                line = line.replace('{Z_var}', Z_var).replace('{ramprate}', str(ramprate)).replace('{feed}', str(feed)).replace('{Z_start}', str(Z_start))
-                #line = line.replace('{com1}', str(com[0])).replace('{com2}', str(com[1]))
-                f.write(line)
-        g.close()
-
-    return f
-    f.close()
-
-if intro_flag == True:
-    intro_export = intro(intro_gcode, export_gcode_txt, Z_var, ramprate, feed, Z_start)
-    type_open = "a"
-else:
-    type_open = "w"
-
-
-## generates the g-code
-with open(export_gcode_txt, type_open) as f:
+with open(completeName, 'w') as f:
     f.write("\n\r;------------Set Pressures------------")
     f.write(setpress1)
     f.write(setpress2)
-    f.write(toggleON_1)
-    # for repeat in range(3):
-    #     f.write("\nG1 X3")
-    #     f.write(toggleON_2)
-    #     f.write(toggleOFF_1)
-    #
-    #     f.write("\nG1 X3")
-    #     f.write(toggleON_1)
-    #     f.write(valveOFF_2)
 
-    f.write("\nG1 X" + str(offset*2))# + str(offset))
+    f.write(press1_toggle)
+    f.write(press2_toggle)
+
+    f.write(toggleON_1)
+
+    for repeat in range(3):
+        f.write("\nG1 X3")
+        f.write(toggleON_2)
+        f.write(toggleOFF_1)
+        f.write("\nG1 X3")
+        f.write(toggleON_1)
+        f.write(toggleOFF_2)
+
+    f.write("\nG1 X3")
     for i in range(number_lines_to_print):
         current_line = i + 1
-        new_line = True
         if i > 1:
-            f.write("\n;------------- new line -------------------")
+            f.write("\n------------- new line -------------------")
 
         ############ defining the x-movements; i.e., is it moving + or -, are there G0 moves, are there offset
         if current_line % 2 != 0:  ## odd line
             move_x_1 = move_pos_x
             move_x_code_offset_1 = move_pos_x_offset
-            move_x_final_col_1 = move_pos_x_end_line#"\nG1 X" + str(x)
+            move_x_final_col_1 = "\nG1 X" + str(x)
             move_x_2 = move_x_1
             move_x_code_offset_2 = move_x_code_offset_1
             move_x_final_col_2 = move_x_final_col_1
@@ -256,7 +211,7 @@ with open(export_gcode_txt, type_open) as f:
         else:
             move_x_1 = move_neg_x
             move_x_code_offset_1 = move_neg_x_offset
-            move_x_final_col_1 = move_neg_x_end_line#"\nG1 X" + str(-x)
+            move_x_final_col_1 = "\nG1 X" + str(-x)
             move_x_2 = move_x_1
             move_x_code_offset_2 = move_x_code_offset_1
             move_x_final_col_2 = move_x_final_col_1
@@ -267,10 +222,8 @@ with open(export_gcode_txt, type_open) as f:
                 move_x_final_col_2 = "\nG0 X" + str(-x)
 
         ############ deterning what material to turn on or off
-        if current_line <= lines_per_row * row_count:
+        if current_line <= lines_per_row* row_count:
             for j in range(col):
-                if j > 0:
-                    new_line = False
                 if (j + 1) == col:  ## if the last column
                     if material_ON == 1:
                         move_x_code = move_x_final_col_1
@@ -283,16 +236,16 @@ with open(export_gcode_txt, type_open) as f:
                         switchOFF = toggleOFF_2
                         switchON = toggleON_2
 
-                    switch = switchOFF + move_pos_y_offset + switchON  + move_pos_y_remain ### to turn material off during y-moves
+                    switch = switchOFF + move_pos_y + switchON  ### to turn material off during y-moves
                     if y_move_ON == True:
                         switch = '\n' + move_pos_y  ### to keep material on during y-moves
 
                     if current_line == number_lines_to_print:  ## if the last column and the end of the print
+                        f.write(move_x_code)
                         if material_ON == 1:
                             switch = toggleOFF_1
                         elif material_ON == 2:
                             switch = toggleOFF_2
-
                 elif material_ON == 1:
                     move_x_code = move_x_1
                     move_x_code_offset = move_x_code_offset_1
@@ -305,15 +258,11 @@ with open(export_gcode_txt, type_open) as f:
                     material_ON = 1
 
                 ############ actually writing the code to the text file... finally
-                if new_line == True and apply_offset == True:
-                    print("true")
-                    f.write(move_x_code_offset)
-                else:
-                    f.write(move_x_code)
+                f.write(move_x_code)
                 f.write('\n;--------------')
                 f.write(switch)
-                # if apply_offset == True:
-                #     f.write(move_x_code_offset)
+                if apply_offset == True:
+                    f.write(move_x_code_offset)
 
             ############ determines what to do on the last lines of each row
             if current_line == lines_per_row * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
@@ -326,22 +275,7 @@ with open(export_gcode_txt, type_open) as f:
                     material_ON = 1
                 f.write(switch)
                 row_count += 1  ## moves loop to next row block
-
-## Writes aerotech ending to final file (only runs if you flagged it as true)
-def ending(ending_gcode, export_gcode_txt, Z_var):
-    with open(ending_gcode, "r") as g:
-        with open(export_gcode_txt, 'a') as f:
-            f.write('\n\r')
-            for line in g:
-                line = line.replace('{file_name1}', file_name[0]).replace('{file_name2}', file_name[1]).replace(
-                    '{Z_var}', Z_var).replace('{ramprate}', str(ramprate)).replace('{feed}', str(feed)).replace(
-                    '{Z_start}', str(Z_start))
-                line = line.replace('{com1}', str(com[0])).replace('{com2}', str(com[1]))
-                f.write(line)
-
-        g.close()
-
-    return f
-    f.close()
-if ending_flag == True:
-    ending_export = ending(ending_gcode, export_gcode_txt, Z_var)
+    f.write(toggleOFF_1)
+    f.write(toggleOFF_2)
+    f.write(press1_toggle)
+    f.write(press2_toggle)

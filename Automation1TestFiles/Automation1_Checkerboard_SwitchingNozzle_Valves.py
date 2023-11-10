@@ -87,7 +87,16 @@ def write_setpress_Automation1(com, pressure, dwell): # com as list, pressure as
     return '\nSocketWriteString($clientSocket, "\\nexecSetPressure(' + str(com) + ', ' + str(pressure) + ')")' #+ '\nDwell(' +str(dwell) + ')'
 
 def write_togglepress_Automation1(com, dwell): # com as list, dwell as real
-    return '\nSocketWriteString($clientSocket, "\\nexecTogglePressure(' + str(com) + ')")' #+ '\nDwell(' +str(dwell) + ')'
+    return '\nSocketWriteString($clientSocket, "\\nexecTogglePressure(' + str(com) + ')")' + '\nDwell(' +str(dwell) + ')'
+
+def write_valves_Automation1(valve, command): # valve as integar
+    global ON
+    global OFF
+    return '\n$OutBits[' + str(valve) + '] =' + str(command)
+
+### ON/OFF values
+ON = 1
+OFF = 0
 
 ### Are you checking pattern on Qndirty/do you want G0 movements?
 G0_moves = False  # false meanse all moves will be G1
@@ -97,15 +106,15 @@ y_move_ON = True  # false means you want material to turn off during y-moves
 
 ## Are you applying offsets and initial pause?
 apply_offset = True
-offset = 4 # 1.4  # for F=15 #2.5mm for F=25
+offset = 3 # 1.4  # for F=15 #2.5mm for F=25
 
 ## Exporting Information ########################################################################################################
-export_gcode_txt = "231110_Automation1_Checkerboard_SwitchingNozzle_gcode.txt"    # export gcode as txt file (i.e., must include .txt)
+export_gcode_txt = "231110_Automation1_Checkerboard_SwitchingNozzle_Valves_gcode.txt"    # export gcode as txt file (i.e., must include .txt)
 
 intro_flag = True       # False             # mark True if you want to add an intro; mark False if you don't want to add an intro
-ending_flag = False      # False             # mark True if you want to add an ending; mark False if you don't want to add an ending
+ending_flag = True      # False             # mark True if you want to add an ending; mark False if you don't want to add an ending
 intro_gcode = "SPropst_automation1_intro.txt"
-ending_gcode = "Spropst_aerotech_end.txt"
+ending_gcode = "SPropst_automation1_end.txt"
 
 type_test = "not accel"
 
@@ -127,7 +136,7 @@ feed = 15  # mm/sec
 ramprate = 1000 # mm/s/s
 
 com = [9, 10]
-
+valve = [6, 7]
 ## Calculating width, height, number of lines to print, etc. ###
 total_width = col * x
 total_height = rows * x
@@ -147,13 +156,14 @@ print("number_lines_to_print (updated so that number of lines per row is a whole
 
 setpress1 = write_setpress_Automation1([com[0]], [pressure[0]], 0.15)
 setpress2 = write_setpress_Automation1([com[1]], [pressure[1]], 0.15)
+togglepress1 = write_togglepress_Automation1([com[0]], 0.15)
+togglepress2 = write_togglepress_Automation1([com[1]], 0.15)
 
-toggleON_1 = write_togglepress_Automation1([com[0]], 0.15)
-toggleOFF_1 = write_togglepress_Automation1([com[0]], 0.15)
+valveON_1 = write_valves_Automation1(valve[0], ON) #write_togglepress_Automation1([com[0]], 0.15)
+valveOFF_1 = write_valves_Automation1(valve[0], OFF) #write_togglepress_Automation1([com[0]], 0.15)
 
-toggleON_2 = write_togglepress_Automation1([com[1]], 0.15)
-toggleOFF_2 = write_togglepress_Automation1([com[1]], 0.15)
-
+valveON_2 = write_valves_Automation1(valve[1], ON) #write_togglepress_Automation1([com[0]], 0.15)
+valveOFF_2 = write_valves_Automation1(valve[1], OFF) #write_togglepress_Automation1([com[0]], 0.15)
 
 if apply_offset == False:
     offset = 0
@@ -223,7 +233,9 @@ with open(export_gcode_txt, type_open) as f:
     f.write("\n\r;------------Set Pressures------------")
     f.write(setpress1)
     f.write(setpress2)
-    f.write(toggleON_1)
+    f.write(togglepress1)
+    f.write(togglepress2)
+    f.write(valveON_1)
     # for repeat in range(3):
     #     f.write("\nG1 X3")
     #     f.write(toggleON_2)
@@ -275,13 +287,13 @@ with open(export_gcode_txt, type_open) as f:
                     if material_ON == 1:
                         move_x_code = move_x_final_col_1
                         move_x_code_offset = '\r'
-                        switchOFF = toggleOFF_1
-                        switchON = toggleON_1
+                        switchOFF = valveOFF_1
+                        switchON = valveON_1
                     elif material_ON == 2:
                         move_x_code = move_x_final_col_2
                         move_x_code_offset = '\r'
-                        switchOFF = toggleOFF_2
-                        switchON = toggleON_2
+                        switchOFF = valveOFF_2
+                        switchON = valveON_2
 
                     switch = switchOFF + move_pos_y_offset + switchON  + move_pos_y_remain ### to turn material off during y-moves
                     if y_move_ON == True:
@@ -289,19 +301,19 @@ with open(export_gcode_txt, type_open) as f:
 
                     if current_line == number_lines_to_print:  ## if the last column and the end of the print
                         if material_ON == 1:
-                            switch = toggleOFF_1
+                            switch = valveOFF_1
                         elif material_ON == 2:
-                            switch = toggleOFF_2
+                            switch = valveOFF_2
 
                 elif material_ON == 1:
                     move_x_code = move_x_1
                     move_x_code_offset = move_x_code_offset_1
-                    switch = toggleON_2 + toggleOFF_1
+                    switch = valveON_2 + valveOFF_1
                     material_ON = 2
                 elif material_ON == 2:
                     move_x_code = move_x_2
                     move_x_code_offset = move_x_code_offset_2
-                    switch = toggleON_1 + toggleOFF_2
+                    switch = valveON_1 + valveOFF_2
                     material_ON = 1
 
                 ############ actually writing the code to the text file... finally
@@ -319,13 +331,16 @@ with open(export_gcode_txt, type_open) as f:
             if current_line == lines_per_row * row_count and current_line != number_lines_to_print:  ## if the last line of the row and not the last line in the print
                 f.write("\r\n;--------------------------------- new row --------------------------------")
                 if material_ON == 1:  # switching from odd rows to even row
-                    switch = toggleON_2 + toggleOFF_1
+                    switch = valveON_2 + valveOFF_1
                     material_ON = 2
                 else:
-                    switch = toggleON_1 + toggleOFF_2
+                    switch = valveON_1 + valveOFF_2
                     material_ON = 1
                 f.write(switch)
                 row_count += 1  ## moves loop to next row block
+
+    f.write(togglepress1)
+    f.write(togglepress2)
 
 ## Writes aerotech ending to final file (only runs if you flagged it as true)
 def ending(ending_gcode, export_gcode_txt, Z_var):
@@ -333,10 +348,7 @@ def ending(ending_gcode, export_gcode_txt, Z_var):
         with open(export_gcode_txt, 'a') as f:
             f.write('\n\r')
             for line in g:
-                line = line.replace('{file_name1}', file_name[0]).replace('{file_name2}', file_name[1]).replace(
-                    '{Z_var}', Z_var).replace('{ramprate}', str(ramprate)).replace('{feed}', str(feed)).replace(
-                    '{Z_start}', str(Z_start))
-                line = line.replace('{com1}', str(com[0])).replace('{com2}', str(com[1]))
+                line = line.replace('{Z_var}', Z_var)
                 f.write(line)
 
         g.close()
