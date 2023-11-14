@@ -833,14 +833,21 @@ print("command_dict_final = ", command_dict_final)
 
 print("\nWaiting for ping to start....")
 ###### WAITING FOR PING ##################################
+got_a_ping = False
 if __name__ == '__main__':
     from threading import Thread
 
-
-    def thread_make_list():
+    def thread_listen():
+        global got_a_ping
+        while True:
+            data = conn.recv(4)
+            decoded_data = data.decode("utf-8")
+            if decoded_data == 'PING':
+                got_a_ping = True
+    
+    def thread_make_list(data):
         # if data != b'':
         global list_data
-        global data
         data = conn.recv(4)
         list_data.append(data)
         # return list_data
@@ -909,12 +916,9 @@ if __name__ == '__main__':
         conn, addr = s.accept()
         with conn:
 
-            # print(list_data)
-
             print(f"Connected by {addr}")
             data = conn.recv(5)
             decoded_data = data.decode("utf-8")
-            # while decoded_data != 'START':
 
             if decoded_data == 'START':
                 exec(set_press)
@@ -935,20 +939,15 @@ if __name__ == '__main__':
 
             start_time = time.time()
             exec(initial_toggle)
-            data = None
-
+            
+            Thread(target =thread_listen()).start()
+            
             while (i < len(command_dict_final)):
                 real_time = time.time() - start_time
-
-                #data = conn.recv(4)
-
-                Thread(target =thread_make_list()).start()
-                # Thread(target = thread_decode_delete_data()).start()
-                # Thread(target = thread_exec_command()).start()
-
-                if resync_type is not False and data is not None:
-                    # Thread(target = thread_add_time()).start()
-
+        
+                if resync_type is not False and got_a_ping == True:
+                    got_a_ping = False
+                
                     python_recieved_time = real_time  # to match print time rather than when the aux turn on or off
                     print('-------------Received command sync number ', count)
                     print('python time stamp t = ', python_recieved_time)
@@ -959,9 +958,7 @@ if __name__ == '__main__':
                     print('calculated resync time stamp t = ', times_of_resync[count])
                     print('add_time = ', add_time)
                     count += 1
-                    data = None
 
-                # Thread(target = thread_exec_command()).start()
                 if i == 0:
                     offset = offset_time_initial
                 else:
