@@ -37,12 +37,12 @@ offset = 2  # 0.45 #0.5 #2.92 #3.75 #2.5 #use a negative number to increase leng
 offset_initial = offset  # 5 #3.5
 start_delay = 0  # (units in mm)
 
-path = 'C:\\Users\\sprop\\PycharmProjects\\pythonProject\\' # current python project
-file_folder = '230908_GradientInfillV5_gcode.txt' # can be a single txt file or a folder containing all g-code txt files used for parallel printing
+path = 'C:\\Users\\user\\Documents\\SPropst_PythonDecoupling\\' # current python project
+file_folder = 'ParallelPrints_Test' # can be a single txt file or a folder containing all g-code txt files used for parallel printing
 
 intro_gcode = 'SPropst_automation1_DGCintro.txt'
-Z_var = ["D", "C", "B"]
-z_height = 0.58
+Z_var = ["B", "D", "C"]
+z_height = 1
 Z_start = -150 + z_height
 
 home = False  # do you want to home it? (True = yes)
@@ -52,7 +52,7 @@ num_initial_pressureSet = 2  # (aka number of materials used)
 # Open the ports for the pressure box
 press_com1 = 9
 press_com2 = 10
-press_com3 = 4
+press_com3 = 8
 
 resync_type = 'direction-based'  # OPTIONS: 'command-based', 'direction-based', False
 
@@ -61,9 +61,9 @@ resync_number = 1  # number of directions changes between resyncing
 
 PING_delay = 0.0019946302958353313  # from 231114_Automation1_FindDelay_data_P0.5_NumData501
 
-# serialPort1 = openport(press_com1)
-# serialPort2 = openport(press_com2)
-# serialPort3 = openport(press_com3)
+serialPort1 = openport(press_com1)
+serialPort2 = openport(press_com2)
+serialPort3 = openport(press_com3)
 
 
 ############################ Print feed and accel used #############################################
@@ -451,7 +451,7 @@ def generate_gcode(final_gcode_txt_export, accel, Z_var, z_o, feed, Sum_G_comman
                 f.write(resync_PING)
 
 
-        f.write('\n\rHome('+Z_var_string+ ')')
+        f.write('\n\rHome(['+Z_var_string+ '])')
 
         f.close()
 
@@ -737,7 +737,7 @@ compiled_command_dict = {}
 for file in f_list_final:
     if len(f_list_final) > 1:
         gcode_txt_imported = path + '\\' + file
-        final_gcode_txt_export = file_folder+'_aerotech.txt'  # '230831_1mm_32_70_Gradient_diamond_lattice_aerotech.txt'
+        final_gcode_txt_export = path + '\\' + file_folder + '_AEROTECH.txt'  # '230831_1mm_32_70_Gradient_diamond_lattice_aerotech.txt'
 
     else:
         gcode_txt_imported = file
@@ -807,9 +807,10 @@ for file in f_list_final:
         command = command_list_final_current[i]
         key = time_list_final_current[i]
         if key not in compiled_command_dict:
-            compiled_command_dict[key] = [command]
+            compiled_command_dict[key] = command
         else:
-            compiled_command_dict[key].append(command)
+            compiled_command_dict[key].extend(command)
+
 
     #if file == f_list_final[0]:
     print('current gcode number time-stamps/commands', len(time_list_final_current), len(command_list_final_current))
@@ -819,8 +820,8 @@ for file in f_list_final:
     if resync_number == 1:
         times_of_resync = times_of_resync[1:]
 
-
-dict(sorted(compiled_command_dict.items())) # sorts the compiled dictionary using the time-stamps
+compiled_command_dict = dict(sorted(compiled_command_dict.items())) # sorts the compiled dictionary using the time-stamps
+print(compiled_command_dict)
 time_list_final = list(compiled_command_dict.keys())
 command_list_final = list(compiled_command_dict.values())
 initial_command_list_final = list(compiled_initial_list)
@@ -836,6 +837,12 @@ for command in initial_command_list_final:
     else:
         initial_toggle_list.append(command)
 
+preset_list = '[%s]' % ', '.join(map(str, preset_list))
+initial_toggle_list = '[%s]' % ', '.join(map(str, initial_toggle_list))
+
+for i in range(len(command_list_final)):
+    command_list = command_list_final[i]
+    command_list_final[i] = '[%s]' % ', '.join(map(str, command_list))
 
 end_time = time.time()
 total_time = end_time - start_time
@@ -923,6 +930,7 @@ if __name__ == '__main__':
                 current_time_stamp_execute = (time_list_final[i] - offset) + add_time
                 if real_time >= current_time_stamp_execute:
                     print('----executed command number '+ str(i+1) + ' of '+str(len(command_list_final)) )
+                    print(command_list_final[i])
                     exec(command_list_final[i])
                     i += 1
 
