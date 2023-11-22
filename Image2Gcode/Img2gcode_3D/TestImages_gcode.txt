@@ -1,0 +1,837 @@
+
+G91
+{preset}serialPort1.write(b'\x05\x02\x30\x38\x50\x53\x20\x20\x30\x32\x33\x30\x46\x30\x03')
+{preset}serialPort2.write(b'\x05\x02\x30\x38\x50\x53\x20\x20\x30\x32\x33\x30\x46\x30\x03')
+{preset}serialPort1.write(b'\x05\x02\x30\x34\x44\x49\x20\x20\x43\x46\x03')
+{preset}serialPort2.write(b'\x05\x02\x30\x34\x44\x49\x20\x20\x43\x46\x03')
+
+{aux_command}WAGO_ValveCommands(6, 1)
+
+G1 X-5
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1 X-5.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-3
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-7
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-3
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-5.5
+G1  Y-1
+G1 X4.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X4.5
+G1  Y-1
+G1 X-3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-3.5
+G1  Y-1
+G1 X3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X3.5
+G1  Y-1
+G1 X-3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-3.5
+G1  Y-1
+G1 X3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X3.5
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1 X-3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-17
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-3.5
+G1  Y-1
+G1 X4.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X15
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X4.5
+G1  Y-1
+G1 X-5.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-13
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-5.5
+G1  Y-1
+G1 X6.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X11
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X6.5
+G1  Y-1
+G1 X-7.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-9
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-7.5
+G1  Y-1
+G1 X8.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X8.5
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1  X-24.0
+G1  Z1
+G1  Y24.0
+G1  X1
+G1  Y-24.0
+G1  X1
+G1  Y24.0
+G1  X1
+G1  Y-24.0
+G1  X1
+G1 Y7.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y1
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y4
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y7.5
+G1  X1
+G1 Y-6.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y-4
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y-6.5
+G1  X1
+G1 Y5.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y3
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y6
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y5.5
+G1  X1
+G1 Y-5.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y-6
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y-4.5
+G1  X1
+G1 Y3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y6
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y5.5
+G1  X1
+G1 Y-6.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y-4
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-6
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y-2.5
+G1  X1
+G1 Y2.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y6
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y4
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y7.5
+G1  X1
+G1 Y-15.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-6
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y-2.5
+G1  X1
+G1 Y2.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y6
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y15.5
+G1  X1
+G1 Y-15.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-6
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y-2.5
+G1  X1
+G1 Y2.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y6
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y4
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y7.5
+G1  X1
+G1 Y-6.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y-4
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-6
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y-2.5
+G1  X1
+G1 Y3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y6
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y5.5
+G1  X1
+G1 Y-5.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y-6
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y-4.5
+G1  X1
+G1 Y5.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y3
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y6
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y5.5
+G1  X1
+G1 Y-6.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y-4
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y-6.5
+G1  X1
+G1 Y7.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y1
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 Y4
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 Y4
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  Y7.5
+G1  X1
+G1  Y-24.0
+G1  X1
+G1  Y24.0
+G1  X1
+G1  Y-24.0
+G1  X1
+G1  Y24.0
+G1  Z1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1 X-5.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-3
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-7
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-3
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-5.5
+G1  Y-1
+G1 X4.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X5
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X4.5
+G1  Y-1
+G1 X-3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-3.5
+G1  Y-1
+G1 X3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X3.5
+G1  Y-1
+G1 X-3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X-3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-3.5
+G1  Y-1
+G1 X3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1 X3
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X2
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X3.5
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1 X-3.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-17
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-3.5
+G1  Y-1
+G1 X4.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X15
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X4.5
+G1  Y-1
+G1 X-5.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-13
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-5.5
+G1  Y-1
+G1 X6.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X11
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X6.5
+G1  Y-1
+G1 X-7.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X-9
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X-7.5
+G1  Y-1
+G1 X8.5
+
+{aux_command}WAGO_ValveCommands(6, 0)
+
+{aux_command}WAGO_ValveCommands(7, 0)
+G0 X7
+
+
+{aux_command}WAGO_ValveCommands(6, 1)
+G1  X8.5
+G1  Y-1
+G1  X-24.0
+G1  Y-1
+G1  X24.0
+G1  Y-1
+G1  X-24.0
+G1  Z1
+{aux_command}WAGO_ValveCommands(6, 0)
+{aux_command}WAGO_ValveCommands(7, 0)
