@@ -16,34 +16,6 @@
     4. export as .dxf
 
 '''
-
-## Single material prints
-###################### IMPORT / EXPORT FILES ##############################################################################################################
-import_gcode_txt = "InflatableIncher_V1.txt"             # upload gcode as txt file (i.e., must include .txt)
-export_gcode_txt = "NBrown_InflatableIncher_V1_aerotech_Valves.txt"    # export gcode as txt file (i.e., must include .txt)
-
-intro_flag = True       # False             # mark True if you want to add an intro; mark False if you don't want to add an intro
-ending_flag = True      # False             # mark True if you want to add an ending; mark False if you don't want to add an ending
-intro_gcode = "SPropst_automation1_DGCintro.txt"
-
-
-######################## DEFINE PARAMETERS ################################################################################################################
-
-Z_var = "D" # format: "axis" ; replaces Z with aerotech axis variable
-
-#### PRESSURE BOXES ####
-com = [5]
-pressure = [37]
-
-#### Intro / Ending Variables (only used if they are specified in intro gcode using format {variable name} --- (see SPropst_aerotech_intro.txt as example)
-feed = 25                  # mm/s           # e.g., G1 F{feed}
-ramprate = 1500             # mm/s^2         # e.g., RAMP RATE {ramprate}
-Z_height = 0.5             # mm             # z_height for the first layer (used to calculate Z_start)
-Z_start = -150 + Z_height  # mm             # e.g., G0 {Z_var}{Z_start} ; tells the printer what z position to start at (-150 assumes you are starting from the lowest point on axis)
-
-file_name = ["$hFile"]                      # e.g., DVAR {file_name} : used to open connection between aerotech and pressure boxes
-
-#### DEFINE Pressure Values and Toggle on/off ####
 def setpress(pressure):
     # IMPORTS
     from codecs import encode
@@ -129,10 +101,49 @@ def togglepress():
     from textwrap import wrap
     toggle = str('"\\x05\\x02\\x30\\x34\\x44\\x49\\x20\\x20\\x43\\x46\\x03"')
     return toggle
+def write_setpress_Automation1(com, pressure, dwell): # com as list, pressure as list, dwell as real
+    return '\nSocketWriteString($clientSocket, "\\nexecSetPressure(' + str(com) + ', ' + str(pressure) + ')")'# + '\nDwell(' +str(dwell) + ')'
 
-setpress_val = str('\n\rFILEWRITE ' + file_name[0] + str(setpress(pressure[0])) + '\r\n')           # set pressure
-toggleON_1 = '\n$OutBits[$Valve6] = 1'      #For valves
-toggleOFF_1 = '\n$OutBits[$Valve6] = 0'     #For valves
+def write_togglepress_Automation1(com, dwell): # com as list, dwell as real
+    return '\nSocketWriteString($clientSocket, "\\nexecTogglePressure(' + str(com) + ')")' #+ '\nDwell(' +str(dwell) + ')'
+
+ON = 1
+OFF = 0
+def write_valves_Automation1(valve, command): # valve as integar
+    global ON
+    global OFF
+    return '\n$OutBits[' + str(valve) + '] =' + str(command)
+## Single material prints
+###################### IMPORT / EXPORT FILES ##############################################################################################################
+import_gcode_txt = "231127_OrangeSpiral_size3x_gcode_slic3r.txt"             # upload gcode as txt file (i.e., must include .txt)
+export_gcode_txt = "231127_OrangeSpiral_size3x_gcode_slic3r_AERO.txt"    # export gcode as txt file (i.e., must include .txt)
+
+intro_flag = True       # False             # mark True if you want to add an intro; mark False if you don't want to add an intro
+ending_flag = True
+intro_gcode = "SPropst_automation1_intro.txt"
+ending_gcode = "SPropst_automation1_end.txt"
+
+######################## DEFINE PARAMETERS ################################################################################################################
+
+Z_var = "C" # format: "axis" ; replaces Z with aerotech axis variable
+
+#### PRESSURE BOXES ####
+com = [9]
+valve = [6]
+pressure = [0]
+
+#### Intro / Ending Variables (only used if they are specified in intro gcode using format {variable name} --- (see SPropst_aerotech_intro.txt as example)
+feed = 20                  # mm/s           # e.g., G1 F{feed}
+ramprate = 1500             # mm/s^2         # e.g., RAMP RATE {ramprate}
+Z_height = 0.58             # mm             # z_height for the first layer (used to calculate Z_start)
+Z_start = -150 + Z_height  # mm             # e.g., G0 {Z_var}{Z_start} ; tells the printer what z position to start at (-150 assumes you are starting from the lowest point on axis)
+
+#### DEFINE Pressure Values and Toggle on/off ####
+
+setpress_val = write_setpress_Automation1(com, pressure, 0)           # set pressure
+pressureboxtoggle = write_togglepress_Automation1(com,0)
+toggleON_1 = write_valves_Automation1(valve[0], ON)
+toggleOFF_1 = write_valves_Automation1(valve[0], OFF)    #For valves
 # toggleON_1 = str('\n\rFILEWRITE ' + file_name[0] + str(togglepress()))                             #for pressure box # toggle on/off
 # toggleOFF_1 = toggleON_1                                                                           #for pressure box
 
@@ -144,7 +155,7 @@ def open_gcode(gcode_txt):
     with open(gcode_txt, "r") as gcode:
         for myline in gcode:  # For each elem in the file,
             if ";" not in myline or "G90" in myline or "G91" in myline: # removes comments
-                gcode_list.append(myline.strip('\n').replace('Z', Z_var).replace('G21', '; G21'))
+                gcode_list.append(myline.strip('\n').replace('Z', Z_var).replace('G21', '; G21').replace('M', '; M'))
 
             # print(myline)
         gcode_list = [x for x in gcode_list if x != ""] # removes spaces
@@ -168,14 +179,26 @@ def parse_gcode(gcode_list):
         find_G2_moves = find(gcode_dict[i], "G2")
         find_G3_moves = find(gcode_dict[i], "G3")
 
+        for j in range(len(gcode_dict[i])):
+            find_feed = find(gcode_dict[i][j], "F")  # if feed rate is redefined, material is not extruding
+            if find_feed != [] and find_comment != [0]:
+                del gcode_dict[i][j]
+                gcode_dict[i].append('')
+
+        for j in range(len(gcode_dict[i])):
+            find_extrusion = find(gcode_dict[i][j], "E")
+            if find_extrusion != [] and find_comment != [0]:
+                del gcode_dict[i][j]
+                gcode_dict[i].append(';extruding ')
+
         if find_G0 != [] and find_comment != [0]:
             gcode_dict[i].append(';not extruding')
 
-        if find_extrusion != []: # if extrusion flag is found: removes flag and adds extruding comment
-            gcode_dict[i].append(';extruding')
-
-        if find_G2_moves != [] or find_G3_moves != []: # material is extruding during circular moves
-            gcode_dict[i].append(';extruding')
+        # if find_extrusion != []: # if extrusion flag is found: removes flag and adds extruding comment
+        #     gcode_dict[i].append(';extruding')
+        #
+        # if find_G2_moves != [] or find_G3_moves != []: # material is extruding during circular moves
+        #     gcode_dict[i].append(';extruding')
     gcode_list = []
 
     for i in range(len(gcode_dict)):
@@ -191,9 +214,10 @@ def intro(intro_gcode, export_gcode_txt, Z_var, ramprate, feed, Z_start):
     with open(intro_gcode, "r") as g:
         with open(export_gcode_txt, 'w') as f:
             for line in g:
-                line = line.replace('{file_name}', file_name[0]).replace('{Z_var}', Z_var).replace('{ramprate}', str(ramprate)).replace('{feed}', str(feed)).replace('{Z_start}', str(Z_start))
+                line = line.replace('{Z_var}', Z_var).replace('{ramprate}', str(ramprate)).replace('{feed}', str(feed)).replace('{Z_start}', str(Z_start))
                 line = line.replace('{com}', str(com[0]))
-                line = line.replace('{setpress}', str(pressure[0]))
+                line = line.replace('{setpress}', str(setpress_val))
+                line = line.replace('{toggle}', str(pressureboxtoggle))
                 f.write(line)
         g.close()
 
@@ -221,13 +245,16 @@ def export_gcode(gcode_list, export_gcode_txt, intro_flag):
             elem = gcode_list[i]
             if "G1 ;not extruding " in elem:
                 f.write('')
+            if "G1  ;extruding  " in elem:
+                f.write('')
             elif ";not extruding " in elem and on == True:
                 f.write(toggleOFF_1)
+                f.write("\nDwell(0.05)")
                 f.write('\n'+elem)
                 on = False
             elif ';extruding ' in elem and on == False:
                 f.write(toggleON_1)
-                f.write("\nDWELL 0.15")
+                f.write("\nDwell(0.05)")
                 f.write('\n'+elem)
                 on = True
             else:
@@ -241,3 +268,15 @@ def export_gcode(gcode_list, export_gcode_txt, intro_flag):
 final_gcode = export_gcode(gcode_list,export_gcode_txt, intro_flag)
 
 ## Writes aerotech ending to final file (only runs if you flagged it as true)
+def ending(ending_gcode, export_gcode_txt, Z_var):
+    with open(ending_gcode, "r") as g:
+        with open(export_gcode_txt, 'a') as f:
+            f.write('\n\r')
+            for line in g:
+                f.write(line.replace('{Z_var}', Z_var).replace('{toggle}', str(pressureboxtoggle)))
+        g.close()
+
+    return f
+    f.close()
+if ending_flag == True:
+    ending_export = ending(ending_gcode, export_gcode_txt, Z_var)
