@@ -319,22 +319,22 @@ def gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segment_length,
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     ### File names
-    export_file = '231024_GradientBand_gcode.txt'
-    save_path = ''#'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
+    export_file = '231027_GradientBand_B_ThickBand_NG_gcode.txt'
+    save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
     ### Geometric Settings
-    fil_spacing = 1.5
+    fil_spacing = 2
     segments = ['length', 1]  # for gradient
-    gradient_fraction = 1/3
-    xy_num_fil = [int(30 / fil_spacing),
-                  int(30 / fil_spacing)]  # [x, y] or [lenght, width] number of filaments in these directions
+    gradient_fraction = 1/2
+    xy_num_fil = [int(20 / fil_spacing),
+                  int(20 / fil_spacing)]  # [x, y] or [lenght, width] number of filaments in these directions
 
     fil_width = 0.45
-    layer_height = 0.4
-    num_layers =2 # int(10/layer_height)
+    layer_height = 0.55
+    num_layers = int(20/layer_height)
 
-    pressure_range = [20, 35]  # [center of print, outside edge of print]
-
+    pressure_range = [25, 18]#[16, 24]  # [center of print, outside edge of print]
+    NG_pressure = 22
     ### Pressure box and valve settings
     com = "serialPort1"
     valve = 6
@@ -346,17 +346,25 @@ if __name__ == '__main__':
     valveON = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', True)'
     valveOFF = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', False)'
 
+    com_NG = "serialPort2"
+    setpress_NG = str('\n\r' + com_NG + '.write(' + str(setpress(NG_pressure) + ')'))  # material 1
+    toggleON_NG = str('\n\r' + com_NG + '.write(' + str(togglepress()) + ')')  # turn on material 2
+    toggleOFF_NG = toggleON_NG
+
     import os.path
 
     completeName = os.path.join(save_path, export_file)
     f = open(completeName, "w")
     f.write(setpress_start)
+    f.write(setpress_NG)
     f.write(toggleON)
     f.write(valveON)
+
+
 
     gradient_square_lattice(fil_spacing, xy_num_fil, num_layers, segments, fil_width, layer_height, pressure_range, valveON, valveOFF, )
 
     f.write(valveOFF)
     f.write(toggleOFF)
-
+    f.write(toggleOFF_NG)
     f.close()

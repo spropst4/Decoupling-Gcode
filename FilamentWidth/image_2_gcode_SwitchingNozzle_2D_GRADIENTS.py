@@ -111,11 +111,11 @@ def find_distances(gcode_list):  # s = string to search, ch = character to find
         #input_var_list.append(result_var_list)
 
     return result_var_list, result_dist_list
-def Gradient_line_segmentation(input_line, segments, pressure_range, valveON, valveOFF):
+def Gradient_line_segmentation(input_line, gradient_fraction, segments, pressure_range,pressure_range2, valveON, valveOFF):
+    print('-------------------')
     gcode_list = []
-    print('----------------------------------')
     ###
-    input_variables = input_line[0]
+    input_variables =input_line[0]
     input_dist_original = input_line[1]
     input_dist = []
     for elem in input_dist_original:
@@ -142,45 +142,63 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, valveON, va
         segment_len_input = line_length/num_segments
         first_n_last_segment_len = segment_len
 
-    if num_segments%3 == 0:
-        pressure_divide = num_segments//3 - 1
+    if num_segments%(1/gradient_fraction) == 0:
+        pressure_divide = num_segments//(1/gradient_fraction) - 1
     else:
-        pressure_divide = num_segments//3
+        pressure_divide = num_segments//(1/gradient_fraction)
 
-    pressure_change_incr = (abs(pressure_range[1] - pressure_range[0])) / (pressure_divide)
+    if pressure_divide > 0:
+        pressure_change_incr = (pressure_range[1] - pressure_range[0]) / (pressure_divide)
+    if pressure_divide == 0:
+        import sys
+        print('Segments are too large to create desired length of gradient section. Try make the segments shorter.')
+        sys.exit()
     pressure = pressure_range[1]
 
-    if num_segments%3 == 0:
-        add = 1
+    add_end = num_segments % (1/gradient_fraction)
+    if add_end == 0:
+        add_begin = 0
+        add_end = 1
     else:
-        add = 1
+        add_begin = 1
 
     if len(input_dist) == 1: # horizontal or vertical lines
-        pressure = pressure_range[1]
         for i in range(num_segments):
             sign = input_dist[0] / abs(input_dist[0])
 
             '''PRESSURES'''
             valve_toggleOFF = '\n'
             valve_toggleON = '\n'
-            if (i+1) == 1:
-                pressure = pressure_range[1]
+            valve_toggleOFF2  = '\n'
+            valve_toggleON2  = '\n'
 
-            elif (i + 1) < (num_segments // 3) + 1:  # decreasing pressure for first segment
+            if (i + 1) == 1:
+                pressure = pressure_range[1]
+                pressure2 = pressure_range2[1]
+
+            elif (i + 1) <= (num_segments // (1/gradient_fraction)) + add_begin:  # decreasing pressure for first 1/3 section
                 pressure -= pressure_change_incr
                 valve_toggleOFF = valveOFF
                 valve_toggleON = valveON
 
-            elif (i + 1) <= (2*(num_segments // 3)) + add:
-                pressure = pressure_range[0]
+                pressure2 += pressure_change_incr
 
-            else:
+            elif (i + 1) > (((1/gradient_fraction)-1) * (num_segments // (1/gradient_fraction))) + add_end:
                 pressure += pressure_change_incr
+                pressure2 -= pressure_change_incr
+                valve_toggleOFF2 = valveOFF2
+                valve_toggleON2 = valveON2
+
 
             print(pressure)
+
             gcode_list.append(valve_toggleOFF)
             gcode_list.append(str('\n\r' + com[0] + '.write(' + str(setpress(pressure)) + ')'))
             gcode_list.append(valve_toggleON)
+
+            gcode_list.append(valve_toggleOFF2)
+            gcode_list.append(str('\n\r' + com[1] + '.write(' + str(setpress(pressure2)) + ')'))
+            gcode_list.append(valve_toggleON2)
 
             if (i+1) == num_segments or (i+1) == 1:
                 gcode_list.append('\nG1 ' + input_variables[0] + str(sign * first_n_last_segment_len))
@@ -190,12 +208,10 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, valveON, va
 
 
     elif len(input_dist) == 2: # sloped lines
-        pressure = pressure_range[1]
-
         line_slope = abs(input_dist[1] / input_dist[0])
         a_sign = input_dist[0] / abs(input_dist[0])
         b_sign = input_dist[1] / abs(input_dist[1])
-        #print('---------- here', num_segments)
+
         for i in range(num_segments):
 
             a_segment = segment_len / np.sqrt(1 + line_slope ** 2)
@@ -204,24 +220,20 @@ def Gradient_line_segmentation(input_line, segments, pressure_range, valveON, va
                 a_segment = first_n_last_segment_len / np.sqrt(1 + line_slope ** 2)
                 b_segment = line_slope * a_segment
 
-            '''PRESSURES'''
             valve_toggleOFF = '\n'
             valve_toggleON = '\n'
             if (i + 1) == 1:
                 pressure = pressure_range[1]
 
-            elif (i + 1) < (num_segments // 3) + 1:  # decreasing pressure for first segment
+            elif (i + 1) <= (num_segments // (1/gradient_fraction)) + add_begin:  # decreasing pressure for first 1/3 section
                 pressure -= pressure_change_incr
                 valve_toggleOFF = valveOFF
                 valve_toggleON = valveON
 
-            elif (i + 1) <= (2 * (num_segments // 3)) + add:
-                pressure = pressure_range[0]
-
-            else:
+            elif (i + 1) > (((1 / gradient_fraction) - 1) * (num_segments // (1 / gradient_fraction))) + add_end:
                 pressure += pressure_change_incr
 
-            #print(pressure)
+            print(pressure)
 
             gcode_list.append(valve_toggleOFF)
             gcode_list.append(str('\n\r' + com[0] + '.write(' + str(setpress(pressure)) + ')'))
@@ -336,7 +348,9 @@ def image_2_gcode_2plusMaterials(image_name, y_dist, offset, color_list, other_c
                 if dist != 0 and pixel == color_list[0]:
                     gcode_line = [gcode + dist_sign + str(dist)]
                     input_line = find_distances(gcode_line)
-                    gcode_segmented_output = Gradient_line_segmentation(input_line, segments, pressure_range, valveON, valveOFF)
+                    gcode_segmented_output = Gradient_line_segmentation(input_line, gradient_fraction, segments,
+                                                                        pressure_range, pressure_range2, valveON,
+                                                                        valveOFF)
 
                     gcode_list_segmented = gcode_segmented_output
                     for line in gcode_list_segmented:
@@ -364,7 +378,8 @@ def image_2_gcode_2plusMaterials(image_name, y_dist, offset, color_list, other_c
             print('---------------------------------------------------here')
             gcode_line = [gcode + dist_sign + str(dist)]
             input_line = find_distances(gcode_line)
-            gcode_segmented_output = Gradient_line_segmentation(input_line, segments, pressure_range, valveON, valveOFF)
+            gcode_segmented_output = Gradient_line_segmentation(input_line, gradient_fraction, segments, pressure_range,
+                                                                pressure_range2, valveON, valveOFF)
 
             gcode_list_segmented = gcode_segmented_output
             for line in gcode_list_segmented:
@@ -391,6 +406,7 @@ save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SProps
 y_dist = 1 # width of filament/nozzle
 offset = 0
 segments = ['length', 0.5] # ['type', value], type options: 'length', 'number'
+gradient_fraction = 1/2
 
 '''IGNORE FOR NOW !!!!!'''
 scale_x = 1 # 1 pixel = [scale] mm
@@ -401,11 +417,12 @@ com = ["serialPort1", "serialPort2"]#, 'serialPort3']
 
 # Define the Pressures
 pressure_range = [22, 30]
+pressure_range2 = [22, 30]
 
-valve = 6
+valve = [6,7]
 ############################################ Define colors ##################################
 
-color_code = 'HEX' #RGB' # 'HEX', 'Grayscale'
+color_code = 'Grayscale' #RGB' # 'HEX', 'Grayscale'
 
 if color_code == 'HEX':
     ## HEX:
@@ -441,8 +458,11 @@ gcode_simulate_color = color1
 
 
 ############################################ Create command lists ##################################
-valveON = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', True)'
-valveOFF = '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', False)'
+valveON = '\n{aux_command}WAGO_ValveCommands(' + str(valve[0]) + ', True)'
+valveOFF = '\n{aux_command}WAGO_ValveCommands(' + str(valve[0]) + ', False)'
+
+valveON2 = '\n{aux_command}WAGO_ValveCommands(' + str(valve[1]) + ', True)'
+valveOFF2 = '\n{aux_command}WAGO_ValveCommands(' + str(valve[1]) + ', False)'
 
 setpress_list = []
 color_ON_list = []
@@ -465,7 +485,8 @@ with open(completeName,'w') as f:
 
     f.write('\n' +setpress_list[i])
     f.write(str('\n\r' + com[0] + '.write(' + str(togglepress()) + ')') ) # turn on material 2)
-    f.write('\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', True)')
+    f.write('\n{aux_command}WAGO_ValveCommands(' + str(valve[0]) + ', True)')
+    f.write('\n{aux_command}WAGO_ValveCommands(' + str(valve[1]) + ', True)')
 
     f.write('\nG91\r')
     f.write('\nG1 X10')

@@ -87,8 +87,8 @@ def togglepress():
 
 def pressurebox_str_command(port, pressure):
     return str('\n\r' + port + '.write(' + str(setpress(pressure)) + ')')
-def pressurebox_toggle_str_command(com):
-    return str('\n\r' + com + '.write(' + str(togglepress()) + ')')
+def pressurebox_toggle_str_command(port):
+    return str('\n\r' + port + '.write(' + str(togglepress()) + ')')
 
 def valve_str_command(valve, command):
     return '\n{aux_command}WAGO_ValveCommands(' + str(valve) + ', ' +str(command) + ')'
@@ -106,6 +106,7 @@ def generateCircleG3(r, section_arc_length, circle_fraction, start_settings, pat
 
     #theta_between_moves = (np.pi / (circle_fraction/2)) / num_sections
     pressure = start_settings[-1]
+    f.write(valve_str_command(6, True))
     f.write(pressurebox_str_command('serialPort1', pressure))
     print(pressure)
     if start_settings[0] == 'initial':
@@ -136,7 +137,7 @@ def generateCircleG3(r, section_arc_length, circle_fraction, start_settings, pat
         sign = 1
 
     for c in range(num_sections):
-        pressure += 0.2
+        pressure += 0.05
         print(pressure)
         x = round(r*np.cos(theta_for_xy), 10)
         y = round(r * np.sin(theta_for_xy),10)
@@ -164,19 +165,20 @@ def generateCircleG3(r, section_arc_length, circle_fraction, start_settings, pat
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    export_file = '231018_GradientCircle_gcode.txt'
+    export_file = '231022_GradientCircle_gcode.txt'
     save_path = 'C:\\Users\\MuellerLab_HPC\\PycharmProjects\\Gcode_generator\\SPropst_Decoupling'
 
     r = 3
     section_arc_length = 1
     circle_fraction = 1/2
-    start_pressure = 15
+    start_pressure = 23
     start_settings = ['initial', start_pressure]
 
     import os.path
 
     completeName = os.path.join(save_path, export_file)
     f = open(completeName, "w")
+    f.write(pressurebox_toggle_str_command("serialPort1"))
     '''
     spiral pattern
     - pattern_type = 'spiral'
@@ -185,14 +187,18 @@ if __name__ == '__main__':
     pattern_type = 'spiral'  # options: 'spiral', 'not spiral'
     start_settings = generateCircleG3(r, section_arc_length, circle_fraction, start_settings, pattern_type)
 
-    count = 0.8
-    while r <= 20:
-        section_arc_length += 0.5
+    count = 0.5
+    while r <= 15:
+        section_arc_length += 0
         #print('---', start_settings)
         r += count
         start_settings = generateCircleG3(r, section_arc_length, circle_fraction, start_settings, pattern_type)
 
         count = count * 1.2
+
+    f.write(valve_str_command(6, False))
+    f.write(pressurebox_toggle_str_command("serialPort1"))
+
     '''
     full circle from circle fractions
     - consecutive loops must use some section arc length
